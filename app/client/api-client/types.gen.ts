@@ -1859,13 +1859,15 @@ export type GetScheduleNotificationsResponses = {
                 priority: 'default' | 'high' | 'low' | 'max' | 'min';
                 topic: string;
                 type: 'ntfy';
+                password?: string;
                 serverUrl?: string;
-                token?: string;
+                username?: string;
             } | {
                 priority: number;
                 serverUrl: string;
                 token: string;
                 type: 'gotify';
+                path?: string;
             } | {
                 shoutrrrUrl: string;
                 type: 'custom';
@@ -1873,6 +1875,7 @@ export type GetScheduleNotificationsResponses = {
                 type: 'discord';
                 webhookUrl: string;
                 avatarUrl?: string;
+                threadId?: string;
                 username?: string;
             } | {
                 type: 'slack';
@@ -1940,13 +1943,15 @@ export type UpdateScheduleNotificationsResponses = {
                 priority: 'default' | 'high' | 'low' | 'max' | 'min';
                 topic: string;
                 type: 'ntfy';
+                password?: string;
                 serverUrl?: string;
-                token?: string;
+                username?: string;
             } | {
                 priority: number;
                 serverUrl: string;
                 token: string;
                 type: 'gotify';
+                path?: string;
             } | {
                 shoutrrrUrl: string;
                 type: 'custom';
@@ -1954,6 +1959,7 @@ export type UpdateScheduleNotificationsResponses = {
                 type: 'discord';
                 webhookUrl: string;
                 avatarUrl?: string;
+                threadId?: string;
                 username?: string;
             } | {
                 type: 'slack';
@@ -2010,13 +2016,15 @@ export type ListNotificationDestinationsResponses = {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
+            password?: string;
             serverUrl?: string;
-            token?: string;
+            username?: string;
         } | {
             priority: number;
             serverUrl: string;
             token: string;
             type: 'gotify';
+            path?: string;
         } | {
             shoutrrrUrl: string;
             type: 'custom';
@@ -2024,6 +2032,7 @@ export type ListNotificationDestinationsResponses = {
             type: 'discord';
             webhookUrl: string;
             avatarUrl?: string;
+            threadId?: string;
             username?: string;
         } | {
             type: 'slack';
@@ -2064,13 +2073,15 @@ export type CreateNotificationDestinationData = {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
+            password?: string;
             serverUrl?: string;
-            token?: string;
+            username?: string;
         } | {
             priority: number;
             serverUrl: string;
             token: string;
             type: 'gotify';
+            path?: string;
         } | {
             shoutrrrUrl: string;
             type: 'custom';
@@ -2078,6 +2089,7 @@ export type CreateNotificationDestinationData = {
             type: 'discord';
             webhookUrl: string;
             avatarUrl?: string;
+            threadId?: string;
             username?: string;
         } | {
             type: 'slack';
@@ -2117,13 +2129,15 @@ export type CreateNotificationDestinationResponses = {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
+            password?: string;
             serverUrl?: string;
-            token?: string;
+            username?: string;
         } | {
             priority: number;
             serverUrl: string;
             token: string;
             type: 'gotify';
+            path?: string;
         } | {
             shoutrrrUrl: string;
             type: 'custom';
@@ -2131,6 +2145,7 @@ export type CreateNotificationDestinationResponses = {
             type: 'discord';
             webhookUrl: string;
             avatarUrl?: string;
+            threadId?: string;
             username?: string;
         } | {
             type: 'slack';
@@ -2217,13 +2232,15 @@ export type GetNotificationDestinationResponses = {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
+            password?: string;
             serverUrl?: string;
-            token?: string;
+            username?: string;
         } | {
             priority: number;
             serverUrl: string;
             token: string;
             type: 'gotify';
+            path?: string;
         } | {
             shoutrrrUrl: string;
             type: 'custom';
@@ -2231,6 +2248,7 @@ export type GetNotificationDestinationResponses = {
             type: 'discord';
             webhookUrl: string;
             avatarUrl?: string;
+            threadId?: string;
             username?: string;
         } | {
             type: 'slack';
@@ -2271,13 +2289,15 @@ export type UpdateNotificationDestinationData = {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
+            password?: string;
             serverUrl?: string;
-            token?: string;
+            username?: string;
         } | {
             priority: number;
             serverUrl: string;
             token: string;
             type: 'gotify';
+            path?: string;
         } | {
             shoutrrrUrl: string;
             type: 'custom';
@@ -2285,6 +2305,7 @@ export type UpdateNotificationDestinationData = {
             type: 'discord';
             webhookUrl: string;
             avatarUrl?: string;
+            threadId?: string;
             username?: string;
         } | {
             type: 'slack';
@@ -2334,13 +2355,15 @@ export type UpdateNotificationDestinationResponses = {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
+            password?: string;
             serverUrl?: string;
-            token?: string;
+            username?: string;
         } | {
             priority: number;
             serverUrl: string;
             token: string;
             type: 'gotify';
+            path?: string;
         } | {
             shoutrrrUrl: string;
             type: 'custom';
@@ -2348,6 +2371,7 @@ export type UpdateNotificationDestinationResponses = {
             type: 'discord';
             webhookUrl: string;
             avatarUrl?: string;
+            threadId?: string;
             username?: string;
         } | {
             type: 'slack';

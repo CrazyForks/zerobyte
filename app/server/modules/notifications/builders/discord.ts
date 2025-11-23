@@ -17,7 +17,10 @@ export function buildDiscordShoutrrrUrl(config: Extract<NotificationConfig, { ty
 		params.append("username", config.username);
 	}
 	if (config.avatarUrl) {
-		params.append("avatar_url", config.avatarUrl);
+		params.append("avatarurl", config.avatarUrl);
+	}
+	if (config.threadId) {
+		params.append("thread_id", config.threadId);
 	}
 
 	if (params.toString()) {

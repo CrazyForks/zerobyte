@@ -4,8 +4,9 @@ export function buildGotifyShoutrrrUrl(config: Extract<NotificationConfig, { typ
 	const url = new URL(config.serverUrl);
 	const hostname = url.hostname;
 	const port = url.port ? `:${url.port}` : "";
+	const path = config.path ? `/${config.path.replace(/^\/+|\/+$/g, "")}` : "";
 
-	let shoutrrrUrl = `gotify://${hostname}${port}/${config.token}`;
+	let shoutrrrUrl = `gotify://${hostname}${port}${path}/${config.token}`;
 
 	if (config.priority !== undefined) {
 		shoutrrrUrl += `?priority=${config.priority}`;

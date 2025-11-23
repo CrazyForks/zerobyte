@@ -36,12 +36,14 @@ export const discordNotificationConfigSchema = type({
 	webhookUrl: "string",
 	username: "string?",
 	avatarUrl: "string?",
+	threadId: "string?",
 });
 
 export const gotifyNotificationConfigSchema = type({
 	type: "'gotify'",
 	serverUrl: "string",
 	token: "string",
+	path: "string?",
 	priority: "0 <= number <= 10",
 });
 

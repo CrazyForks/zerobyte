@@ -58,7 +58,7 @@ async function encryptSensitiveFields(config: NotificationConfig): Promise<Notif
 		case "ntfy":
 			return {
 				...config,
-				token: config.token ? await cryptoUtils.encrypt(config.token) : undefined,
+				password: config.password ? await cryptoUtils.encrypt(config.password) : undefined,
 			};
 		case "pushover":
 			return {
@@ -100,7 +100,7 @@ async function decryptSensitiveFields(config: NotificationConfig): Promise<Notif
 		case "ntfy":
 			return {
 				...config,
-				token: config.token ? await cryptoUtils.decrypt(config.token) : undefined,
+				password: config.password ? await cryptoUtils.decrypt(config.password) : undefined,
 			};
 		case "pushover":
 			return {

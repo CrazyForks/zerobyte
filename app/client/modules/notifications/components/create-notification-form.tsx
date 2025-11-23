@@ -370,6 +370,22 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								</FormItem>
 							)}
 						/>
+						<FormField
+							control={form.control}
+							name="threadId"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Thread ID (Optional)</FormLabel>
+									<FormControl>
+										<Input {...field} />
+									</FormControl>
+									<FormDescription>
+										ID of the thread to post messages in. Leave empty to post in the main channel.
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 					</>
 				)}
 
@@ -423,6 +439,20 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								</FormItem>
 							)}
 						/>
+						<FormField
+							control={form.control}
+							name="path"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Path (Optional)</FormLabel>
+									<FormControl>
+										<Input {...field} placeholder="/custom/path" />
+									</FormControl>
+									<FormDescription>Custom path on the Gotify server, if applicable.</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 					</>
 				)}
 
@@ -458,14 +488,28 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 						/>
 						<FormField
 							control={form.control}
-							name="token"
+							name="username"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Access Token (Optional)</FormLabel>
+									<FormLabel>Username (Optional)</FormLabel>
+									<FormControl>
+										<Input {...field} placeholder="username" />
+									</FormControl>
+									<FormDescription>Username for server authentication, if required.</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name="password"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Password (Optional)</FormLabel>
 									<FormControl>
 										<Input {...field} type="password" placeholder="••••••••" />
 									</FormControl>
-									<FormDescription>Required if the topic is protected.</FormDescription>
+									<FormDescription>Password for server authentication, if required.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}

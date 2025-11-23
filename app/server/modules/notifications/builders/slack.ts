@@ -20,7 +20,7 @@ export function buildSlackShoutrrrUrl(config: Extract<NotificationConfig, { type
 		params.append("username", config.username);
 	}
 	if (config.iconEmoji) {
-		params.append("icon", config.iconEmoji);
+		params.append("icon_emoji", config.iconEmoji);
 	}
 
 	if (params.toString()) {
