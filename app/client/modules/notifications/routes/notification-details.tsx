@@ -149,7 +149,6 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 						variant="destructive"
 						loading={deleteDestination.isPending}
 					>
-						<Trash2 className="h-4 w-4 mr-2" />
 						Delete
 					</Button>
 				</div>
