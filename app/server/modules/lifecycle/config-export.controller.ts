@@ -67,7 +67,13 @@ function parseExportParams(c: Context): ExportParams {
 	const includeIds = c.req.query("includeIds") !== "false";
 	const includeTimestamps = c.req.query("includeTimestamps") !== "false";
 	const includeRuntimeState = c.req.query("includeRuntimeState") === "true";
-	const secretsMode = (c.req.query("secretsMode") as SecretsMode) || "exclude";
+	const secretsModeRaw = c.req.query("secretsMode");
+	const allowedSecretsModes: SecretsMode[] = ["exclude", "encrypted", "cleartext"];
+	const secretsMode: SecretsMode = secretsModeRaw
+		? (allowedSecretsModes.includes(secretsModeRaw as SecretsMode)
+			? (secretsModeRaw as SecretsMode)
+			: (() => { throw new Error("Invalid secretsMode parameter"); })())
+		: "exclude";
 	const excludeKeys = getExcludeKeys(includeIds, includeTimestamps, includeRuntimeState);
 	return { includeIds, includeTimestamps, secretsMode, excludeKeys };
 }
