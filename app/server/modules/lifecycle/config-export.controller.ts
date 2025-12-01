@@ -149,6 +149,11 @@ async function fetchVolumes(filter: FilterOptions): Promise<FetchResult<typeof v
 
 async function fetchRepositories(filter: FilterOptions): Promise<FetchResult<typeof repositoriesTable.$inferSelect>> {
 	if (filter.id) {
+		// Validate UUID format
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		if (!uuidRegex.test(filter.id)) {
+			return { error: "Invalid repository ID format (expected UUID)", status: 400 };
+		}
 		const result = await db.select().from(repositoriesTable).where(eq(repositoriesTable.id, filter.id));
 		if (result.length === 0) return { error: `Repository with ID '${filter.id}' not found`, status: 404 };
 		return { data: result };
