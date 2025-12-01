@@ -439,7 +439,6 @@ export function ExportDialog({
 }
 
 export function ExportCard({ entityType, ...props }: Omit<ExportDialogProps, "variant" | "trigger">) {
-	const config = exportConfigs[entityType];
 
 	return (
 		<ExportDialog
