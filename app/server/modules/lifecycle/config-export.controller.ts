@@ -337,7 +337,7 @@ export const configExportController = new Hono()
 			return c.json({ notificationDestinations: await exportEntities(result.data, params) });
 		} catch (err) {
 			logger.error(`Notification destinations export failed: ${err instanceof Error ? err.message : String(err)}`);
-			return c.json({ error: "Failed to export notification destinations" }, 500);
+			return c.json({ error: `Failed to export notification destinations: ${err instanceof Error ? err.message : String(err)}` }, 500);
 		}
 	})
 	.get("/export/backup-schedules", async (c) => {
@@ -365,7 +365,7 @@ export const configExportController = new Hono()
 			return c.json({ backupSchedules });
 		} catch (err) {
 			logger.error(`Backup schedules export failed: ${err instanceof Error ? err.message : String(err)}`);
-			return c.json({ error: "Failed to export backup schedules" }, 500);
+			return c.json({ error: `Failed to export backup schedules: ${err instanceof Error ? err.message : String(err)}` }, 500);
 		}
 	});
 
