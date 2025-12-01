@@ -40,7 +40,7 @@ In order to run Zerobyte, you need to have Docker and Docker Compose installed o
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.13
+    image: ghcr.io/nicotsx/zerobyte:v0.15
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -78,7 +78,7 @@ If you want to track a local directory on the same server where Zerobyte is runn
 ```diff
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.13
+    image: ghcr.io/nicotsx/zerobyte:v0.15
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -146,7 +146,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    ```diff
    services:
      zerobyte:
-       image: ghcr.io/nicotsx/zerobyte:v0.13
+       image: ghcr.io/nicotsx/zerobyte:v0.15
        container_name: zerobyte
        restart: unless-stopped
        cap_add:
@@ -205,7 +205,7 @@ In order to enable this feature, you need to change your bind mount `/var/lib/ze
 ```diff
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.13
+    image: ghcr.io/nicotsx/zerobyte:v0.15
     container_name: zerobyte
     restart: unless-stopped
     ports:
@@ -236,7 +236,7 @@ In order to enable this feature, you need to run Zerobyte with several items sha
 ```diff
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.13
+    image: ghcr.io/nicotsx/zerobyte:v0.15
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
