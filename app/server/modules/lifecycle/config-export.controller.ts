@@ -263,7 +263,9 @@ export const configExportController = new Hono()
 				backupSchedulesRaw, scheduleNotifications, volumeMap, repoMap, notificationMap, params
 			);
 
-			// TODO: Volumes will have encrypted secrets (e.g., SMB/NFS credentials) in a future PR
+			// WARNING: As of now, volume exports may include sensitive data (e.g., SMB/NFS credentials) in cleartext.
+			// This is a known security limitation. Handle exported configuration files with care.
+			// Future PRs will implement encryption for these secrets.
 			const [exportVolumes, exportRepositories, exportNotifications] = await Promise.all([
 				exportEntities(volumes, params),
 				exportEntities(repositories, params),
