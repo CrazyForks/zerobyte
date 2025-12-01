@@ -207,6 +207,7 @@ To export, click the "Export" button on any list page or detail page. A dialog w
 
 - **Include database IDs** - Useful for debugging or when you need to reference internal identifiers
 - **Include timestamps** - Include createdAt/updatedAt fields in the export
+- **Include runtime state** - Include current status, health checks, and last backup information (usually not needed for migration)
 - **Secrets handling** (for repositories and notifications):
   - **Exclude** - Remove sensitive fields like passwords and API keys
   - **Keep encrypted** - Export secrets in encrypted form (requires the same recovery key to decrypt on import)
