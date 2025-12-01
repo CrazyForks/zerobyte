@@ -300,7 +300,7 @@ export const configExportController = new Hono()
 			return c.json({ volumes: await exportEntities(result.data, params) });
 		} catch (err) {
 			logger.error(`Volumes export failed: ${err instanceof Error ? err.message : String(err)}`);
-			return c.json({ error: "Failed to export volumes" }, 500);
+			return c.json({ error: `Failed to export volumes: ${err instanceof Error ? err.message : String(err)}` }, 500);
 		}
 	})
 	.get("/export/repositories", async (c) => {
