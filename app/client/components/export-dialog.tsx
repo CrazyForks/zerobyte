@@ -440,15 +440,3 @@ export function ExportDialog({
 		</Dialog>
 	);
 }
-
-export function ExportCard({ entityType, ...props }: Omit<ExportDialogProps, "variant" | "trigger">) {
-
-	return (
-		<ExportDialog
-			entityType={entityType}
-			variant="card"
-			triggerLabel={props.triggerLabel ?? `Export ${props.id || props.name ? "config" : "configs"}`}
-			{...props}
-		/>
-	);
-}
