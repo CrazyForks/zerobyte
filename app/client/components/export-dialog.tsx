@@ -61,7 +61,8 @@ async function exportFromApi(endpoint: string, filename: string, options: Export
 	const res = await fetch(url, { credentials: "include" });
 
 	if (!res.ok) {
-		throw new Error(`Export failed: ${res.statusText}`);
+		const errorText = await res.text().catch(() => res.statusText);
+		throw new Error(errorText || `HTTP ${res.status}`);
 	}
 
 	const data = await res.json();
