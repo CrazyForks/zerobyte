@@ -288,12 +288,7 @@ export function ExportDialog({
 						<DialogHeader>
 							<DialogTitle>Confirm Export</DialogTitle>
 							<DialogDescription>
-								For security reasons, please enter your password to export
-								{includeRecoveryKey && secretsMode === "cleartext"
-									? " the recovery key and decrypted secrets."
-									: includeRecoveryKey
-										? " the recovery key."
-										: " decrypted secrets."}
+								For security reasons, please enter your password to export sensitive information
 							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-4 py-4">
