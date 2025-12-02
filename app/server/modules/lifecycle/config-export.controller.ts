@@ -55,7 +55,11 @@ function getExcludeKeys(includeIds: boolean, includeTimestamps: boolean, include
 		// Backup schedule state
 		"lastBackupAt", "lastBackupStatus", "lastBackupError", "nextBackupAt",
 	];
+	// Redundant fields that are already present inside the config object
+	// (e.g., type is duplicated as config.backend or config.type)
+	const redundantKeys = ["type"];
 	return [
+		...redundantKeys,
 		...(includeRuntimeState ? [] : runtimeStateKeys),
 		...(includeIds ? [] : idKeys),
 		...(includeTimestamps ? [] : timestampKeys),
