@@ -73,7 +73,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 	}, [compatibility]);
 
 	useEffect(() => {
-		if (currentMirrors) {
+		if (currentMirrors && !hasChanges) {
 			const map = new Map<string, MirrorAssignment>();
 			for (const mirror of currentMirrors) {
 				map.set(mirror.repositoryId, {
@@ -87,7 +87,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 
 			setAssignments(map);
 		}
-	}, [currentMirrors]);
+	}, [currentMirrors, hasChanges]);
 
 	const addRepository = (repositoryId: string) => {
 		const newAssignments = new Map(assignments);
@@ -155,10 +155,6 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 		}
 	};
 
-	const getRepositoryById = (id: string) => {
-		return repositories?.find((r) => r.id === id);
-	};
-
 	const selectableRepositories =
 		repositories?.filter((r) => {
 			if (r.id === primaryRepositoryId) return false;
@@ -172,16 +168,16 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 	});
 
 	const assignedRepositories = Array.from(assignments.keys())
-		.map((id) => getRepositoryById(id))
+		.map((id) => repositories?.find((r) => r.id === id))
 		.filter((r) => r !== undefined);
 
-	const getStatusVariant = (status: "success" | "error" | null): "success" | "error" | "neutral" => {
+	const getStatusVariant = (status: "success" | "error" | null) => {
 		if (status === "success") return "success";
 		if (status === "error") return "error";
 		return "neutral";
 	};
 
-	const getStatusLabel = (assignment: MirrorAssignment): string => {
+	const getStatusLabel = (assignment: MirrorAssignment) => {
 		if (assignment.lastCopyStatus === "error" && assignment.lastCopyError) {
 			return assignment.lastCopyError;
 		}

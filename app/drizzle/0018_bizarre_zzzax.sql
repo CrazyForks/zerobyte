@@ -23,7 +23,6 @@ CREATE TABLE `__new_app_metadata` (
 INSERT INTO `__new_app_metadata`("key", "value", "created_at", "updated_at") SELECT "key", "value", "created_at", "updated_at" FROM `app_metadata`;--> statement-breakpoint
 DROP TABLE `app_metadata`;--> statement-breakpoint
 ALTER TABLE `__new_app_metadata` RENAME TO `app_metadata`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE TABLE `__new_backup_schedule_notifications_table` (
 	`schedule_id` integer NOT NULL,
 	`destination_id` integer NOT NULL,
@@ -137,3 +136,4 @@ DROP TABLE `volumes_table`;--> statement-breakpoint
 ALTER TABLE `__new_volumes_table` RENAME TO `volumes_table`;--> statement-breakpoint
 CREATE UNIQUE INDEX `volumes_table_short_id_unique` ON `volumes_table` (`short_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `volumes_table_name_unique` ON `volumes_table` (`name`);
+PRAGMA foreign_keys=ON;--> statement-breakpoint

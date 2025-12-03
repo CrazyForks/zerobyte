@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { int, integer, sqliteTable, text, primaryKey } from "drizzle-orm/sqlite-core";
+import { int, integer, sqliteTable, text, primaryKey, uniqueIndex, unique } from "drizzle-orm/sqlite-core";
 import type { CompressionMode, RepositoryBackend, repositoryConfigSchema, RepositoryStatus } from "~/schemas/restic";
 import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
 import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
@@ -160,20 +160,24 @@ export type BackupScheduleNotification = typeof backupScheduleNotificationsTable
  * Backup Schedule Mirrors Junction Table (Many-to-Many)
  * Allows copying snapshots to secondary repositories after backup completes
  */
-export const backupScheduleMirrorsTable = sqliteTable("backup_schedule_mirrors_table", {
-	id: int().primaryKey({ autoIncrement: true }),
-	scheduleId: int("schedule_id")
-		.notNull()
-		.references(() => backupSchedulesTable.id, { onDelete: "cascade" }),
-	repositoryId: text("repository_id")
-		.notNull()
-		.references(() => repositoriesTable.id, { onDelete: "cascade" }),
-	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
-	lastCopyAt: int("last_copy_at", { mode: "number" }),
-	lastCopyStatus: text("last_copy_status").$type<"success" | "error">(),
-	lastCopyError: text("last_copy_error"),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const backupScheduleMirrorsTable = sqliteTable(
+	"backup_schedule_mirrors_table",
+	{
+		id: int().primaryKey({ autoIncrement: true }),
+		scheduleId: int("schedule_id")
+			.notNull()
+			.references(() => backupSchedulesTable.id, { onDelete: "cascade" }),
+		repositoryId: text("repository_id")
+			.notNull()
+			.references(() => repositoriesTable.id, { onDelete: "cascade" }),
+		enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
+		lastCopyAt: int("last_copy_at", { mode: "number" }),
+		lastCopyStatus: text("last_copy_status").$type<"success" | "error">(),
+		lastCopyError: text("last_copy_error"),
+		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	},
+	(table) => [unique().on(table.scheduleId, table.repositoryId)],
+);
 
 export const backupScheduleMirrorRelations = relations(backupScheduleMirrorsTable, ({ one }) => ({
 	schedule: one(backupSchedulesTable, {

@@ -522,13 +522,25 @@ const copyToMirrors = async (
 				repositoryName: mirror.repository.name,
 			});
 
-			await restic.copy(sourceRepository.config, mirror.repository.config, {
-				tag: scheduleId.toString(),
-			});
+			const releaseSource = await repoMutex.acquireShared(sourceRepository.id, `mirror_source:${scheduleId}`);
+			const releaseMirror = await repoMutex.acquireShared(mirror.repository.id, `mirror:${scheduleId}`);
+
+			try {
+				await restic.copy(sourceRepository.config, mirror.repository.config, { tag: scheduleId.toString() });
+			} finally {
+				releaseSource();
+				releaseMirror();
+			}
 
 			if (retentionPolicy) {
-				logger.info(`[Background] Applying retention policy to mirror repository: ${mirror.repository.name}`);
-				await restic.forget(mirror.repository.config, retentionPolicy, { tag: scheduleId.toString() });
+				const releaseForget = await repoMutex.acquireExclusive(mirror.repository.id, `forget:mirror:${scheduleId}`);
+
+				try {
+					logger.info(`[Background] Applying retention policy to mirror repository: ${mirror.repository.name}`);
+					await restic.forget(mirror.repository.config, retentionPolicy, { tag: scheduleId.toString() });
+				} finally {
+					releaseForget();
+				}
 			}
 
 			await db
