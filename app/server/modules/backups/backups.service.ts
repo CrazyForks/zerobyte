@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import cron from "node-cron";
 import { CronExpressionParser } from "cron-parser";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
@@ -38,6 +38,7 @@ const listSchedules = async () => {
 			volume: true,
 			repository: true,
 		},
+		orderBy: [asc(backupSchedulesTable.sortOrder), asc(backupSchedulesTable.id)],
 	});
 	return schedules;
 };
@@ -637,6 +638,16 @@ const getMirrorCompatibility = async (scheduleId: number) => {
 	return compatibility;
 };
 
+const reorderSchedules = async (scheduleIds: number[]) => {
+	// Update each schedule's sortOrder based on its position in the array
+	for (let i = 0; i < scheduleIds.length; i++) {
+		await db
+			.update(backupSchedulesTable)
+			.set({ sortOrder: i, updatedAt: Date.now() })
+			.where(eq(backupSchedulesTable.id, scheduleIds[i]));
+	}
+};
+
 export const backupsService = {
 	listSchedules,
 	getSchedule,
@@ -651,4 +662,5 @@ export const backupsService = {
 	getMirrors,
 	updateMirrors,
 	getMirrorCompatibility,
+	reorderSchedules,
 };

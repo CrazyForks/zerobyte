@@ -1,0 +1,2 @@
+ALTER TABLE `backup_schedules_table` ADD `sort_order` integer DEFAULT 0 NOT NULL;
+
