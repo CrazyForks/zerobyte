@@ -2631,7 +2631,7 @@ export type ExportFullConfigData = {
 
 export type ExportFullConfigErrors = {
     /**
-     * Password required for sensitive export options
+     * Password required for export or authentication failed
      */
     401: {
         error: string;
@@ -2651,16 +2651,20 @@ export type ExportFullConfigResponses = {
      * Full configuration export
      */
     200: {
-        admin?: {
-            username: string;
-            passwordHash?: string;
-            recoveryKey?: string;
-        } | null;
+        version: number;
         backupSchedules?: Array<unknown>;
         exportedAt?: string;
         notificationDestinations?: Array<unknown>;
+        recoveryKey?: string;
         repositories?: Array<unknown>;
-        version?: number;
+        users?: Array<{
+            username: string;
+            createdAt?: number;
+            hasDownloadedResticPassword?: boolean;
+            id?: number;
+            passwordHash?: string;
+            updatedAt?: number;
+        }>;
         volumes?: Array<unknown>;
     };
 };

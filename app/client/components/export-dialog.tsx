@@ -224,7 +224,7 @@ export function ExportDialog({
 							</Label>
 						</div>
 						<p className="text-xs text-muted-foreground ml-7">
-							Include the hashed admin password for seamless migration. The password is already securely
+							Include the hashed user passwords for seamless migration. The passwords are already securely
 							hashed (argon2).
 						</p>
 

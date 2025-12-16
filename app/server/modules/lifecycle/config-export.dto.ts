@@ -10,9 +10,9 @@ export const fullExportBodySchema = type({
 	"secretsMode?": secretsModeSchema,
 	/** Password required for authentication */
 	password: "string",
-	/** Include the recovery key (requires password) */
+	/** Include the recovery key */
 	"includeRecoveryKey?": "boolean",
-	/** Include the admin password hash */
+	/** Include the user password hash */
 	"includePasswordHash?": "boolean",
 });
 
@@ -55,7 +55,7 @@ export const fullExportDto = describeRoute({
 			},
 		},
 		401: {
-			description: "Password required for sensitive export options",
+			description: "Password required for export or authentication failed",
 			content: {
 				"application/json": {
 					schema: resolver(errorResponseSchema),
