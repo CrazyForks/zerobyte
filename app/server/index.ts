@@ -19,6 +19,7 @@ import { logger } from "./utils/logger";
 import { shutdown } from "./modules/lifecycle/shutdown";
 import { REQUIRED_MIGRATIONS } from "./core/constants";
 import { validateRequiredMigrations } from "./modules/lifecycle/checkpoint";
+import { config } from "./core/config";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -28,7 +29,7 @@ export const generalDescriptor = (app: Hono) =>
 				version: "1.0.0",
 				description: "API for managing volumes",
 			},
-			servers: [{ url: "http://192.168.2.42:4096", description: "Development Server" }],
+			servers: [{ url: `http://${config.serverIp}:4096`, description: "Development Server" }],
 		},
 	});
 
