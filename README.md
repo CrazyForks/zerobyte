@@ -198,26 +198,21 @@ Zerobyte allows you to easily restore your data from backups. To restore data, n
 
 ## Exporting configuration
 
-Zerobyte allows you to export your configuration for backup, migration, or documentation purposes. You can export:
-
-- **Full configuration** - All volumes, repositories, backup schedules, and notification destinations
-- **Individual entities** - Export specific volumes, repositories, notifications, or backup schedules
+Zerobyte allows you to export your configuration for backup, migration, or documentation purposes.
 
 To export, click the "Export" button on any list page or detail page. A dialog will appear with options to:
 
-- **Include database IDs** - Useful for debugging or when you need to reference internal identifiers
-- **Include timestamps** - Include createdAt/updatedAt fields in the export
-- **Include runtime state** - Include current status, health checks, and last backup information (usually not needed for migration)
-- **Secrets handling** (for repositories and notifications):
+- **Include metadata** - Include IDs, timestamps, and runtime state of entities
+- **Secrets handling**:
   - **Exclude** - Remove sensitive fields like passwords and API keys
   - **Keep encrypted** - Export secrets in encrypted form (requires the same recovery key to decrypt on import)
   - **Decrypt** - Export secrets as plaintext (use with caution)
-- **Include recovery key** (full export only) - Include the master encryption key for all repositories
-- **Include password hash** (full export only) - Include the hashed admin password for seamless migration
+- **Include recovery key** - Include the master encryption key for all repositories
+- **Include password hash** - Include the hashed user passwords for seamless migration
 
-All exports require password verification for security. You must enter your password to confirm your identity before any configuration can be exported.
+Export requires password verification for security. You must enter your password to confirm your identity before any configuration can be exported.
 
-Exports are downloaded as JSON files that can be used for reference or future import functionality.
+Export is downloaded as JSON file that can be used for reference or future import functionality.
 
 ## Propagating mounts to host
 

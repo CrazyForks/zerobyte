@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, Database, HardDrive, Plus } from "lucide-react";
-import { ExportDialog } from "~/client/components/export-dialog";
 import { Link } from "react-router";
 import { BackupStatusDot } from "../components/backup-status-dot";
 import { EmptyState } from "~/client/components/empty-state";
@@ -120,11 +119,6 @@ export default function Backups({ loaderData }: Route.ComponentProps) {
 						</CardContent>
 					</Card>
 				</Link>
-				<Card className="flex flex-col items-center justify-center h-full hover:bg-muted/50 transition-colors cursor-pointer">
-					<CardContent className="flex flex-col items-center justify-center gap-2 h-full w-full">
-						<ExportDialog entityType="backup-schedules" variant="card" />
-					</CardContent>
-				</Card>
 			</div>
 		</div>
 	);

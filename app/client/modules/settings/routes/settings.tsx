@@ -144,9 +144,6 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				<CardDescription className="mt-1.5">Your account details</CardDescription>
 			</div>
 			<CardContent className="p-6 space-y-4">
-				<div className="flex justify-end">
-					<ExportDialog entityType="full" triggerLabel="Export All Config (JSON)" />
-				</div>
 				<div className="space-y-2">
 					<Label>Username</Label>
 					<Input value={loaderData.user?.username || ""} disabled className="max-w-md" />
@@ -265,6 +262,21 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 						</form>
 					</DialogContent>
 				</Dialog>
+			</CardContent>
+
+			<div className="border-t border-border/50 bg-card-header p-6">
+				<CardTitle className="flex items-center gap-2">
+					<Download className="size-5" />
+					Export Configuration
+				</CardTitle>
+				<CardDescription className="mt-1.5">Export your Zerobyte configuration for backup or migration</CardDescription>
+			</div>
+			<CardContent className="p-6 space-y-4">
+				<p className="text-sm text-muted-foreground max-w-2xl">
+					Export all your volumes, repositories, backup schedules, and notification settings to a JSON file.
+					This can be used to restore your configuration on a new instance or as a backup of your settings.
+				</p>
+				<ExportDialog triggerLabel="Export Configuration" />
 			</CardContent>
 		</Card>
 	);

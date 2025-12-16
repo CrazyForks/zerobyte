@@ -25,8 +25,7 @@ import { cn } from "~/client/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
-import { Loader2, Trash2 } from "lucide-react";
-import { ExportDialog } from "~/client/components/export-dialog";
+import { Loader2 } from "lucide-react";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
@@ -158,7 +157,6 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 							"Run Doctor"
 						)}
 					</Button>
-					<ExportDialog entityType="repositories" id={data.id} name={data.name} triggerLabel="Export config" />
 					<Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={deleteRepo.isPending}>
 						Delete
 					</Button>
