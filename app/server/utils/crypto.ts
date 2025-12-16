@@ -5,6 +5,9 @@ const algorithm = "aes-256-gcm" as const;
 const keyLength = 32;
 const encryptionPrefix = "encv1";
 
+/**
+ * Checks if a given string is encrypted by looking for the encryption prefix.
+ */
 const isEncrypted = (val?: string): boolean => {
 	return typeof val === "string" && val.startsWith(encryptionPrefix);
 };

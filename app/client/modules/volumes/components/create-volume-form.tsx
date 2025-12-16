@@ -45,7 +45,7 @@ const defaultValuesForType = {
 	nfs: { backend: "nfs" as const, port: 2049, version: "4.1" as const },
 	smb: { backend: "smb" as const, port: 445, vers: "3.0" as const },
 	webdav: { backend: "webdav" as const, port: 80, ssl: false },
-	rclone: { backend: "rclone" as const, remote: "", path: "" },
+	rclone: { backend: "rclone" as const },
 };
 
 export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
@@ -64,7 +64,6 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 	const { watch, getValues } = form;
 
 	const { capabilities } = useSystemInfo();
-
 	const watchedBackend = watch("backend");
 
 	useEffect(() => {
@@ -142,16 +141,54 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 								</FormControl>
 								<SelectContent>
 									<SelectItem value="directory">Directory</SelectItem>
-									<SelectItem value="nfs">NFS</SelectItem>
-									<SelectItem value="smb">SMB</SelectItem>
-									<SelectItem value="webdav">WebDAV</SelectItem>
 									<Tooltip>
-										<TooltipTrigger>
-											<SelectItem disabled={!capabilities.rclone} value="rclone">
-												rclone (40+ cloud providers)
-											</SelectItem>
+										<TooltipTrigger asChild>
+											<div>
+												<SelectItem disabled={!capabilities.sysAdmin} value="nfs">
+													NFS
+												</SelectItem>
+											</div>
 										</TooltipTrigger>
-										<TooltipContent className={cn({ hidden: capabilities.rclone })}>
+										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+											<p>Remote mounts require SYS_ADMIN capability</p>
+										</TooltipContent>
+									</Tooltip>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div>
+												<SelectItem disabled={!capabilities.sysAdmin} value="smb">
+													SMB
+												</SelectItem>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+											<p>Remote mounts require SYS_ADMIN capability</p>
+										</TooltipContent>
+									</Tooltip>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div>
+												<SelectItem disabled={!capabilities.sysAdmin} value="webdav">
+													WebDAV
+												</SelectItem>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+											<p>Remote mounts require SYS_ADMIN capability</p>
+										</TooltipContent>
+									</Tooltip>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div>
+												<SelectItem disabled={!capabilities.rclone || !capabilities.sysAdmin} value="rclone">
+													rclone
+												</SelectItem>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+											<p>Remote mounts require SYS_ADMIN capability</p>
+										</TooltipContent>
+										<TooltipContent className={cn({ hidden: !capabilities.sysAdmin || capabilities.rclone })}>
 											<p>Setup rclone to use this backend</p>
 										</TooltipContent>
 									</Tooltip>
