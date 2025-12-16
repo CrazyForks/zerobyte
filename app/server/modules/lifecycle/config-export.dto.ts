@@ -20,17 +20,21 @@ export type FullExportBody = typeof fullExportBodySchema.infer;
 export type SecretsMode = typeof secretsModeSchema.infer;
 
 const exportResponseSchema = type({
-	"version?": "number",
+	version: "number",
 	"exportedAt?": "string",
+	"recoveryKey?": "string",
 	"volumes?": "unknown[]",
 	"repositories?": "unknown[]",
 	"backupSchedules?": "unknown[]",
 	"notificationDestinations?": "unknown[]",
-	"admin?": type({
+	"users?": type({
+		"id?": "number",
 		username: "string",
 		"passwordHash?": "string",
-		"recoveryKey?": "string",
-	}).or("null"),
+		"createdAt?": "number",
+		"updatedAt?": "number",
+		"hasDownloadedResticPassword?": "boolean",
+	}).array(),
 });
 
 const errorResponseSchema = type({
