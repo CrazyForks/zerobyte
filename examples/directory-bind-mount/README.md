@@ -16,9 +16,9 @@ It uses the simplified setup (no remote mounts).
 cp .env.example .env
 ```
 
-1. Edit `.env` and set `HOST_DATA_DIR` to the directory you want to back up.
+2. Edit `.env` and set `HOST_DATA_DIR` to the directory you want to back up.
 
-1. Start the stack:
+3. Start the stack:
 
 ```bash
 docker compose up -d

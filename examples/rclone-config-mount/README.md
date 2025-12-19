@@ -23,9 +23,9 @@ rclone config
 cp .env.example .env
 ```
 
-1. Edit `.env` and set `RCLONE_CONFIG_DIR` to the absolute path of your host rclone config directory.
+2. Edit `.env` and set `RCLONE_CONFIG_DIR` to the absolute path of your host rclone config directory.
 
-1. Start the stack:
+3. Start the stack:
 
 ```bash
 docker compose up -d

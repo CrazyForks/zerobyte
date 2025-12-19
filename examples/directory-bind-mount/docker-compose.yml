@@ -10,4 +10,4 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
-      - ${HOST_DATA_DIR}:/mydata
+      - ${HOST_DATA_DIR:?HOST_DATA_DIR must be set}:/mydata

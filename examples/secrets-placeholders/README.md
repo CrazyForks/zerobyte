@@ -27,13 +27,15 @@ This example includes `SYS_ADMIN` and `/dev/fuse` because it’s intended for SM
 cp .env.example .env
 ```
 
-1. Create a Docker secret file (this file is not meant to be committed):
+2. Create a Docker secret file.
+
+	⚠️ **Important**: never commit real credentials. This folder includes a `.gitignore` to help prevent accidentally committing secret files.
 
 ```bash
 printf "your-smb-password" > smb-password.txt
 ```
 
-1. Start Zerobyte:
+3. Start Zerobyte:
 
 ```bash
 docker compose up -d
