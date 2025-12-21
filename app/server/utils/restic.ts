@@ -176,6 +176,10 @@ const buildEnv = async (config: RepositoryConfig) => {
 				"UserKnownHostsFile=/dev/null",
 				"-o",
 				"LogLevel=VERBOSE",
+				"-o",
+				"ServerAliveInterval=60",
+				"-o",
+				"ServerAliveCountMax=240",
 				"-i",
 				keyPath,
 			];
