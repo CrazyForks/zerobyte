@@ -108,7 +108,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 												onClick={(e) => e.stopPropagation()}
 												className="hover:underline"
 											>
-												<span className="text-sm">{backup ? backup.id : "-"}</span>
+												<span className="text-sm">{backup ? backup.name : "-"}</span>
 											</Link>
 											<span hidden={!!backup} className="text-sm text-muted-foreground">
 												-
