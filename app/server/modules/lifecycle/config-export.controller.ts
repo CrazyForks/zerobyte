@@ -1,8 +1,7 @@
 import { validator } from "hono-openapi";
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { deleteCookie, getCookie } from "hono/cookie";
-import { backupSchedulesTable, backupScheduleNotificationsTable, usersTable } from "../../db/schema";
+import { backupSchedulesTable, backupScheduleNotificationsTable, backupScheduleMirrorsTable, usersTable } from "../../db/schema";
 import { db } from "../../db/db";
 import { logger } from "../../utils/logger";
 import { RESTIC_PASS_FILE } from "../../core/constants";
@@ -20,14 +19,6 @@ import {
 } from "./config-export.dto";
 import { requireAuth } from "../auth/auth.middleware";
 
-const COOKIE_NAME = "session_id";
-const COOKIE_OPTIONS = {
-	httpOnly: true,
-	secure: false,
-	sameSite: "lax" as const,
-	path: "/",
-};
-
 type ExportParams = {
 	includeMetadata: boolean;
 	secretsMode: SecretsMode;
@@ -36,8 +27,8 @@ type ExportParams = {
 // Keys to exclude when metadata is not included
 const METADATA_KEYS = {
 	ids: ["id", "volumeId", "repositoryId", "scheduleId", "destinationId"],
-	timestamps: ["createdAt", "updatedAt", "lastBackupAt", "nextBackupAt", "lastHealthCheck", "lastChecked"],
-	runtimeState: ["status", "lastError", "lastBackupStatus", "lastBackupError", "hasDownloadedResticPassword"],
+	timestamps: ["createdAt", "updatedAt", "lastBackupAt", "nextBackupAt", "lastHealthCheck", "lastChecked", "lastCopyAt"],
+	runtimeState: ["status", "lastError", "lastBackupStatus", "lastBackupError", "hasDownloadedResticPassword", "lastCopyStatus", "lastCopyError"],
 };
 
 const ALL_METADATA_KEYS = [...METADATA_KEYS.ids, ...METADATA_KEYS.timestamps, ...METADATA_KEYS.runtimeState];
@@ -66,29 +57,24 @@ function parseExportParamsFromBody(body: {
 
 /**
  * Verify password for export operation.
- * All exports require password verification for security.
+ * Requires requireAuth middleware to have already validated the session.
  */
 async function verifyExportPassword(
 	c: Context,
 	password: string
 ): Promise<{ valid: true; userId: number } | { valid: false; error: string }> {
-	const sessionId = getCookie(c, COOKIE_NAME);
-	if (!sessionId) {
+	// requireAuth middleware ensures c.get('user') exists
+	const user = c.get("user");
+	if (!user) {
 		return { valid: false, error: "Not authenticated" };
 	}
 
-	const session = await authService.verifySession(sessionId);
-	if (!session) {
-		deleteCookie(c, COOKIE_NAME, COOKIE_OPTIONS);
-		return { valid: false, error: "Session expired" };
-	}
-
-	const isValid = await authService.verifyPassword(session.user.id, password);
+	const isValid = await authService.verifyPassword(user.id, password);
 	if (!isValid) {
 		return { valid: false, error: "Incorrect password" };
 	}
 
-	return { valid: true, userId: session.user.id };
+	return { valid: true, userId: user.id };
 }
 
 /**
@@ -150,10 +136,11 @@ async function exportEntities<T extends Record<string, unknown>>(
 	return Promise.all(entities.map((e) => exportEntity(e as Record<string, unknown>, params)));
 }
 
-/** Transform backup schedules with resolved names and notifications */
+/** Transform backup schedules with resolved names, notifications, and mirrors */
 function transformBackupSchedules(
 	schedules: (typeof backupSchedulesTable.$inferSelect)[],
 	scheduleNotifications: (typeof backupScheduleNotificationsTable.$inferSelect)[],
+	scheduleMirrors: (typeof backupScheduleMirrorsTable.$inferSelect)[],
 	volumeMap: Map<number, string>,
 	repoMap: Map<string, string>,
 	notificationMap: Map<number, string>,
@@ -167,11 +154,19 @@ function transformBackupSchedules(
 				name: notificationMap.get(sn.destinationId) ?? null,
 			}));
 
+		const mirrors = scheduleMirrors
+			.filter((sm) => sm.scheduleId === schedule.id)
+			.map((sm) => ({
+				...filterMetadataOut(sm as unknown as Record<string, unknown>, params.includeMetadata),
+				repository: repoMap.get(sm.repositoryId) ?? null,
+			}));
+
 		return {
 			...filterMetadataOut(schedule as Record<string, unknown>, params.includeMetadata),
 			volume: volumeMap.get(schedule.volumeId) ?? null,
 			repository: repoMap.get(schedule.repositoryId) ?? null,
 			notifications: assignments,
+			mirrors,
 		};
 	});
 }
@@ -197,13 +192,14 @@ export const configExportController = new Hono()
 			const includePasswordHash = body.includePasswordHash === true;
 
 			// Use services to fetch data
-			const [volumes, repositories, backupSchedulesRaw, notifications, scheduleNotifications, users] =
+			const [volumes, repositories, backupSchedulesRaw, notifications, scheduleNotifications, scheduleMirrors, users] =
 				await Promise.all([
 					volumeService.listVolumes(),
 					repositoriesService.listRepositories(),
 					backupsService.listSchedules(),
 					notificationsService.listDestinations(),
 					db.select().from(backupScheduleNotificationsTable),
+					db.select().from(backupScheduleMirrorsTable),
 					db.select().from(usersTable),
 				]);
 
@@ -214,6 +210,7 @@ export const configExportController = new Hono()
 			const backupSchedules = transformBackupSchedules(
 				backupSchedulesRaw,
 				scheduleNotifications,
+				scheduleMirrors,
 				volumeMap,
 				repoMap,
 				notificationMap,
