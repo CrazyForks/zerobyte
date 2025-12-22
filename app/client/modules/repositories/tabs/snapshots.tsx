@@ -36,8 +36,8 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 		return (
 			snapshot.short_id.toLowerCase().includes(searchLower) ||
 			snapshot.paths.some((path) => path.toLowerCase().includes(searchLower)) ||
-			backup?.name.toLowerCase().includes(searchLower) ||
-			backup?.volume.name.toLowerCase().includes(searchLower)
+			(backup?.name && backup.name.toLowerCase().includes(searchLower)) ||
+			(backup?.volume?.name && backup.volume.name.toLowerCase().includes(searchLower))
 		);
 	});
 
