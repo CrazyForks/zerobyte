@@ -6,11 +6,6 @@ export function buildNtfyShoutrrrUrl(config: Extract<NotificationConfig, { type:
 	const params = new URLSearchParams();
 
 	const auth =
-		config.username && config.password
-			? `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password)}@`
-			: "";
-
-	const auth =
 		config.accessToken
 			? `:${encodeURIComponent(config.accessToken)}@`
 			: config.username && config.password
