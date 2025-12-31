@@ -26,7 +26,7 @@ type ExportParams = {
 
 // Keys to exclude when metadata is not included
 const METADATA_KEYS = {
-	ids: ["id", "shortId", "volumeId", "repositoryId", "scheduleId", "destinationId"],
+	ids: ["id", "volumeId", "repositoryId", "scheduleId", "destinationId"],
 	timestamps: [
 		"createdAt",
 		"updatedAt",
