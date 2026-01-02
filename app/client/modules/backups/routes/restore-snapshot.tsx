@@ -1,7 +1,8 @@
-import { redirect } from "react-router";
+import { Await, redirect } from "react-router";
 import { getBackupSchedule, getRepository, getSnapshotDetails } from "~/client/api-client";
 import { RestoreForm } from "~/client/components/restore-form";
 import type { Route } from "./+types/restore-snapshot";
+import { Suspense } from "react";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
@@ -27,16 +28,15 @@ export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
 	if (!schedule.data) return redirect("/backups");
 
 	const repositoryId = schedule.data.repository.id;
-	const snapshot = await getSnapshotDetails({
+	const snapshot = getSnapshotDetails({
 		path: { id: repositoryId, snapshotId: params.snapshotId },
 	});
-	if (!snapshot.data) return redirect(`/backups/${params.id}`);
 
 	const repository = await getRepository({ path: { id: repositoryId } });
 	if (!repository.data) return redirect(`/backups/${params.id}`);
 
 	return {
-		snapshot: snapshot.data,
+		snapshot: snapshot,
 		repository: repository.data,
 		snapshotId: params.snapshotId,
 		backupId: params.id,
@@ -44,14 +44,24 @@ export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
 };
 
 export default function RestoreSnapshotFromBackupPage({ loaderData }: Route.ComponentProps) {
-	const { snapshot, repository, snapshotId, backupId } = loaderData;
+	const { repository, snapshotId, backupId } = loaderData;
 
 	return (
-		<RestoreForm
-			snapshot={snapshot}
-			repository={repository}
-			snapshotId={snapshotId}
-			returnPath={`/backups/${backupId}`}
-		/>
+		<Suspense fallback={<p>Loading snapshot details...</p>}>
+			<Await resolve={loaderData.snapshot}>
+				{(value) => {
+					if (!value.data) return <div className="text-destructive">Snapshot data not found.</div>;
+
+					return (
+						<RestoreForm
+							snapshot={value.data}
+							repository={repository}
+							snapshotId={snapshotId}
+							returnPath={`/backups/${backupId}`}
+						/>
+					);
+				}}
+			</Await>
+		</Suspense>
 	);
 }

@@ -11,7 +11,10 @@ type ServerEventType =
 	| "volume:unmounted"
 	| "volume:updated"
 	| "mirror:started"
-	| "mirror:completed";
+	| "mirror:completed"
+	| "restore:started"
+	| "restore:progress"
+	| "restore:completed";
 
 export interface BackupEvent {
 	scheduleId: number;
@@ -43,6 +46,24 @@ export interface MirrorEvent {
 	repositoryName: string;
 	status?: "success" | "error";
 	error?: string;
+}
+
+export interface RestoreEvent {
+	repositoryId: string;
+	snapshotId: string;
+	status?: "success" | "error";
+	error?: string;
+}
+
+export interface RestoreProgressEvent {
+	repositoryId: string;
+	snapshotId: string;
+	seconds_elapsed: number;
+	percent_done: number;
+	total_files: number;
+	files_done: number;
+	total_bytes: number;
+	bytes_done: number;
 }
 
 type EventHandler = (data: unknown) => void;
@@ -152,6 +173,32 @@ export function useServerEvents() {
 			queryClient.invalidateQueries();
 
 			handlersRef.current.get("mirror:completed")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("restore:started", (e) => {
+			const data = JSON.parse(e.data) as RestoreEvent;
+			console.log("[SSE] Restore started:", data);
+
+			handlersRef.current.get("restore:started")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("restore:progress", (e) => {
+			const data = JSON.parse(e.data) as RestoreProgressEvent;
+
+			handlersRef.current.get("restore:progress")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("restore:completed", (e) => {
+			const data = JSON.parse(e.data) as RestoreEvent;
+			console.log("[SSE] Restore completed:", data);
+
+			handlersRef.current.get("restore:completed")?.forEach((handler) => {
 				handler(data);
 			});
 		});

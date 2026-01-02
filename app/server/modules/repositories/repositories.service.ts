@@ -8,6 +8,7 @@ import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
 import { repoMutex } from "../../core/repository-mutex";
+import { serverEvents } from "../../core/events";
 import {
 	repositoryConfigSchema,
 	type CompressionMode,
@@ -224,7 +225,20 @@ const restoreSnapshot = async (
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
 	try {
-		const result = await restic.restore(repository.config, snapshotId, target, options);
+		serverEvents.emit("restore:started", { repositoryId: repository.id, snapshotId });
+
+		const result = await restic.restore(repository.config, snapshotId, target, {
+			...options,
+			onProgress: (progress) => {
+				serverEvents.emit("restore:progress", {
+					repositoryId: repository.id,
+					snapshotId,
+					...progress,
+				});
+			},
+		});
+
+		serverEvents.emit("restore:completed", { repositoryId: repository.id, snapshotId, status: "success" });
 
 		return {
 			success: true,
@@ -232,6 +246,14 @@ const restoreSnapshot = async (
 			filesRestored: result.files_restored,
 			filesSkipped: result.files_skipped,
 		};
+	} catch (error) {
+		serverEvents.emit("restore:completed", {
+			repositoryId: repository.id,
+			snapshotId,
+			status: "error",
+			error: toMessage(error),
+		});
+		throw error;
 	} finally {
 		releaseLock();
 	}

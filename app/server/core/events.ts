@@ -24,6 +24,23 @@ interface ServerEvents {
 		repositoryName: string;
 		status: "success" | "error" | "stopped" | "warning";
 	}) => void;
+	"restore:started": (data: { repositoryId: string; snapshotId: string }) => void;
+	"restore:progress": (data: {
+		repositoryId: string;
+		snapshotId: string;
+		seconds_elapsed: number;
+		percent_done: number;
+		total_files: number;
+		files_done: number;
+		total_bytes: number;
+		bytes_done: number;
+	}) => void;
+	"restore:completed": (data: {
+		repositoryId: string;
+		snapshotId: string;
+		status: "success" | "error";
+		error?: string;
+	}) => void;
 	"mirror:started": (data: { scheduleId: number; repositoryId: string; repositoryName: string }) => void;
 	"mirror:completed": (data: {
 		scheduleId: number;

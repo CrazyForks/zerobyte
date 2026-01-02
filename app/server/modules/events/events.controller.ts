@@ -91,6 +91,41 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			});
 		};
 
+		const onRestoreStarted = (data: { repositoryId: string; snapshotId: string }) => {
+			stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "restore:started",
+			});
+		};
+
+		const onRestoreProgress = (data: {
+			repositoryId: string;
+			snapshotId: string;
+			seconds_elapsed: number;
+			percent_done: number;
+			total_files: number;
+			files_done: number;
+			total_bytes: number;
+			bytes_done: number;
+		}) => {
+			stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "restore:progress",
+			});
+		};
+
+		const onRestoreCompleted = (data: {
+			repositoryId: string;
+			snapshotId: string;
+			status: "success" | "error";
+			error?: string;
+		}) => {
+			stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "restore:completed",
+			});
+		};
+
 		serverEvents.on("backup:started", onBackupStarted);
 		serverEvents.on("backup:progress", onBackupProgress);
 		serverEvents.on("backup:completed", onBackupCompleted);
@@ -99,6 +134,9 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 		serverEvents.on("volume:updated", onVolumeUpdated);
 		serverEvents.on("mirror:started", onMirrorStarted);
 		serverEvents.on("mirror:completed", onMirrorCompleted);
+		serverEvents.on("restore:started", onRestoreStarted);
+		serverEvents.on("restore:progress", onRestoreProgress);
+		serverEvents.on("restore:completed", onRestoreCompleted);
 
 		let keepAlive = true;
 
@@ -113,6 +151,9 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			serverEvents.off("volume:updated", onVolumeUpdated);
 			serverEvents.off("mirror:started", onMirrorStarted);
 			serverEvents.off("mirror:completed", onMirrorCompleted);
+			serverEvents.off("restore:started", onRestoreStarted);
+			serverEvents.off("restore:progress", onRestoreProgress);
+			serverEvents.off("restore:completed", onRestoreCompleted);
 		});
 
 		while (keepAlive) {

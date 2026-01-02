@@ -399,6 +399,18 @@ const restoreOutputSchema = type({
 	bytes_skipped: "number",
 });
 
+const restoreProgressSchema = type({
+	message_type: "'status'",
+	seconds_elapsed: "number",
+	percent_done: "number",
+	total_files: "number",
+	files_done: "number",
+	total_bytes: "number",
+	bytes_done: "number",
+});
+
+export type RestoreProgress = typeof restoreProgressSchema.infer;
+
 const restore = async (
 	config: RepositoryConfig,
 	snapshotId: string,
@@ -409,6 +421,8 @@ const restore = async (
 		excludeXattr?: string[];
 		delete?: boolean;
 		overwrite?: OverwriteMode;
+		onProgress?: (progress: RestoreProgress) => void;
+		signal?: AbortSignal;
 	},
 ) => {
 	const repoUrl = buildRepoUrl(config);
@@ -444,18 +458,45 @@ const restore = async (
 
 	addCommonArgs(args, env);
 
-	logger.debug(`Executing: restic ${args.join(" ")}`);
-	const res = await safeSpawn({ command: "restic", args, env });
+	const streamProgress = throttle((data: string) => {
+		if (options?.onProgress) {
+			try {
+				const jsonData = JSON.parse(data);
+				const progress = restoreProgressSchema(jsonData);
+				if (!(progress instanceof type.errors)) {
+					options.onProgress(progress);
+				}
+			} catch (_) {
+				// Ignore JSON parse errors for non-JSON lines
+			}
+		}
+	}, 1000);
 
-	await cleanupTemporaryKeys(config, env);
+	let stdout = "";
+
+	logger.debug(`Executing: restic ${args.join(" ")}`);
+	const res = await safeSpawn({
+		command: "restic",
+		args,
+		env,
+		signal: options?.signal,
+		onStdout: (data) => {
+			stdout = data;
+			if (options?.onProgress) {
+				streamProgress(data);
+			}
+		},
+		finally: async () => {
+			await cleanupTemporaryKeys(config, env);
+		},
+	});
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic restore failed: ${res.stderr}`);
 		throw new ResticError(res.exitCode, res.stderr);
 	}
 
-	const outputLines = res.stdout.trim().split("\n");
-	const lastLine = outputLines[outputLines.length - 1];
+	const lastLine = (stdout || res.stdout).trim().split("\n").pop();
 
 	if (!lastLine) {
 		logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
