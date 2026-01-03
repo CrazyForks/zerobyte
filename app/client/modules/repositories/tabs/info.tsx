@@ -28,7 +28,14 @@ type Props = {
 
 const getEffectiveLocalPath = (repository: Repository): string | null => {
 	if (repository.type !== "local") return null;
-	const config = repository.config as { name: string; path?: string };
+	const config = repository.config as { name: string; path?: string; isExistingRepository?: boolean };
+
+	if (config.isExistingRepository) {
+		// Imported repositories use the path directly
+		return config.path ?? null;
+	}
+
+	// New repositories append the name to the base path
 	const basePath = config.path || REPOSITORY_BASE;
 	return `${basePath}/${config.name}`;
 };
@@ -40,7 +47,6 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 	);
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-	const isImportedLocal = repository.type === "local" && repository.config.isExistingRepository;
 	const effectiveLocalPath = getEffectiveLocalPath(repository);
 
 	const updateMutation = useMutation({

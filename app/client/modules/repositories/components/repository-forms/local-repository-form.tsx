@@ -54,8 +54,8 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 								If the path is not a host mount, you will lose your repository data when the container restarts.
 							</p>
 							<p className="text-sm text-muted-foreground">
-								The default path <code className="bg-muted px-1 rounded">{REPOSITORY_BASE}</code> is
-								safe to use if you followed the recommended Docker Compose setup.
+								The default path <code className="bg-muted px-1 rounded">{REPOSITORY_BASE}</code> is safe to use if you
+								followed the recommended Docker Compose setup.
 							</p>
 						</AlertDialogDescription>
 					</AlertDialogHeader>
