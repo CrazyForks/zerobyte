@@ -3348,23 +3348,6 @@ export type ExportFullConfigData = {
     url: '/api/v1/system/export';
 };
 
-export type ExportFullConfigErrors = {
-    /**
-     * Password required for export or authentication failed
-     */
-    401: {
-        error: string;
-    };
-    /**
-     * Export failed
-     */
-    500: {
-        error: string;
-    };
-};
-
-export type ExportFullConfigError = ExportFullConfigErrors[keyof ExportFullConfigErrors];
-
 export type ExportFullConfigResponses = {
     /**
      * Full configuration export

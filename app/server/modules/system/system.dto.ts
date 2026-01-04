@@ -109,10 +109,6 @@ const exportResponseSchema = type({
 
 export type ExportFullConfigResponse = typeof exportResponseSchema.infer;
 
-const errorResponseSchema = type({
-	error: "string",
-});
-
 export const fullExportDto = describeRoute({
 	description: "Export full configuration including all volumes, repositories, backup schedules, and notifications",
 	operationId: "exportFullConfig",
@@ -123,22 +119,6 @@ export const fullExportDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(exportResponseSchema),
-				},
-			},
-		},
-		401: {
-			description: "Password required for export or authentication failed",
-			content: {
-				"application/json": {
-					schema: resolver(errorResponseSchema),
-				},
-			},
-		},
-		500: {
-			description: "Export failed",
-			content: {
-				"application/json": {
-					schema: resolver(errorResponseSchema),
 				},
 			},
 		},

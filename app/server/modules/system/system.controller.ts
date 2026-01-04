@@ -66,7 +66,7 @@ export const systemController = new Hono()
 	)
 	.post("/export", fullExportDto, validator("json", fullExportBodySchema), async (c) => {
 		const user = c.get("user");
-		const body = c.req.valid("json");
+		const { password, ...body } = c.req.valid("json");
 
 		const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, user.id));
 
@@ -74,7 +74,7 @@ export const systemController = new Hono()
 			return c.json({ message: "User not found" }, 401);
 		}
 
-		const isValid = await Bun.password.verify(body.password, dbUser.passwordHash);
+		const isValid = await Bun.password.verify(password, dbUser.passwordHash);
 
 		if (!isValid) {
 			return c.json({ message: "Incorrect password" }, 401);

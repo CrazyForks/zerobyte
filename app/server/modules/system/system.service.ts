@@ -1,6 +1,6 @@
 import { getCapabilities } from "../../core/capabilities";
 import { config } from "../../core/config";
-import type { FullExportBody, UpdateInfoDto } from "./system.dto";
+import type { UpdateInfoDto } from "./system.dto";
 import semver from "semver";
 import { cache } from "../../utils/cache";
 import { logger } from "~/server/utils/logger";
@@ -17,6 +17,10 @@ import {
 	type BackupScheduleNotification,
 	type BackupSchedule,
 } from "~/server/db/schema";
+
+type ExportParams = {
+	includeMetadata: boolean;
+};
 
 const CACHE_TTL = 60 * 60;
 
@@ -138,11 +142,11 @@ function filterMetadataOut<T extends Record<string, unknown>>(obj: T, includeMet
 	return result;
 }
 
-async function exportEntity(entity: Record<string, unknown>, params: FullExportBody) {
+async function exportEntity(entity: Record<string, unknown>, params: ExportParams) {
 	return filterMetadataOut(entity, params.includeMetadata);
 }
 
-async function exportEntities<T extends Record<string, unknown>>(entities: T[], params: FullExportBody) {
+async function exportEntities<T extends Record<string, unknown>>(entities: T[], params: ExportParams) {
 	return Promise.all(entities.map((e) => exportEntity(e, params)));
 }
 
@@ -150,7 +154,7 @@ const transformBackupSchedules = (
 	schedules: BackupSchedule[],
 	scheduleNotifications: BackupScheduleNotification[],
 	scheduleMirrors: BackupScheduleMirror[],
-	params: FullExportBody,
+	params: ExportParams,
 ) => {
 	return schedules.map((schedule) => {
 		const assignments = scheduleNotifications
@@ -169,7 +173,7 @@ const transformBackupSchedules = (
 	});
 };
 
-const exportConfig = async (params: FullExportBody) => {
+const exportConfig = async (params: ExportParams) => {
 	const [volumes, repositories, backupSchedulesRaw, notifications, scheduleNotifications, scheduleMirrors, users] =
 		await Promise.all([
 			db.select().from(volumesTable),
