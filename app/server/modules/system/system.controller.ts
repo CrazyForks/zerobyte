@@ -7,7 +7,6 @@ import {
 	fullExportDto,
 	getUpdatesDto,
 	systemInfoDto,
-	type ExportFullConfigResponse,
 	type SystemInfoDto,
 	type UpdateInfoDto,
 } from "./system.dto";
