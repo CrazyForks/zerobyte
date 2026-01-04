@@ -24,6 +24,7 @@ import {
 	downloadResticPasswordMutation,
 	logoutMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { downloadFile } from "~/client/lib/utils";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Settings" }],
@@ -79,16 +80,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	const downloadResticPassword = useMutation({
 		...downloadResticPasswordMutation(),
 		onSuccess: (data) => {
-			const blob = new Blob([data], { type: "text/plain" });
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = "restic.pass";
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			window.URL.revokeObjectURL(url);
-
+			downloadFile(data, "restic.pass");
 			toast.success("Restic password file downloaded successfully");
 			setDownloadDialogOpen(false);
 			setDownloadPassword("");
@@ -279,7 +271,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 					Export all your volumes, repositories, backup schedules, and notification settings to a JSON file. This can be
 					used to restore your configuration on a new instance or as a backup of your settings.
 				</p>
-				<ExportDialog triggerLabel="Export Configuration" />
+				<ExportDialog />
 			</CardContent>
 		</Card>
 	);

@@ -3342,9 +3342,6 @@ export type ExportFullConfigData = {
     body?: {
         password: string;
         includeMetadata?: boolean;
-        includePasswordHash?: boolean;
-        includeRecoveryKey?: boolean;
-        secretsMode?: 'cleartext' | 'encrypted' | 'exclude';
     };
     path?: never;
     query?: never;
