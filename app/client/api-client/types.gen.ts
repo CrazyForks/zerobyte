@@ -3345,7 +3345,7 @@ export type ExportFullConfigData = {
     };
     path?: never;
     query?: never;
-    url: '/api/v1/config/export';
+    url: '/api/v1/system/export';
 };
 
 export type ExportFullConfigErrors = {

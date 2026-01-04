@@ -1,9 +1,22 @@
 import { getCapabilities } from "../../core/capabilities";
 import { config } from "../../core/config";
-import type { UpdateInfoDto } from "./system.dto";
+import type { FullExportBody, UpdateInfoDto } from "./system.dto";
 import semver from "semver";
 import { cache } from "../../utils/cache";
 import { logger } from "~/server/utils/logger";
+import { db } from "~/server/db/db";
+import {
+	backupScheduleMirrorsTable,
+	backupScheduleNotificationsTable,
+	backupSchedulesTable,
+	notificationDestinationsTable,
+	repositoriesTable,
+	usersTable,
+	volumesTable,
+	type BackupScheduleMirror,
+	type BackupScheduleNotification,
+	type BackupSchedule,
+} from "~/server/db/schema";
 
 const CACHE_TTL = 60 * 60;
 
@@ -90,7 +103,106 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 	}
 };
 
+const METADATA_KEYS = {
+	timestamps: [
+		"createdAt",
+		"updatedAt",
+		"lastBackupAt",
+		"nextBackupAt",
+		"lastHealthCheck",
+		"lastChecked",
+		"lastCopyAt",
+	],
+	runtimeState: [
+		"status",
+		"lastError",
+		"lastBackupStatus",
+		"lastBackupError",
+		"hasDownloadedResticPassword",
+		"lastCopyStatus",
+		"lastCopyError",
+		"sortOrder",
+	],
+};
+
+const ALL_METADATA_KEYS = [...METADATA_KEYS.timestamps, ...METADATA_KEYS.runtimeState];
+
+function filterMetadataOut<T extends Record<string, unknown>>(obj: T, includeMetadata: boolean): Partial<T> {
+	if (includeMetadata) {
+		return obj;
+	}
+	const result = { ...obj };
+	for (const key of ALL_METADATA_KEYS) {
+		delete result[key as keyof T];
+	}
+	return result;
+}
+
+async function exportEntity(entity: Record<string, unknown>, params: FullExportBody) {
+	return filterMetadataOut(entity, params.includeMetadata);
+}
+
+async function exportEntities<T extends Record<string, unknown>>(entities: T[], params: FullExportBody) {
+	return Promise.all(entities.map((e) => exportEntity(e, params)));
+}
+
+const transformBackupSchedules = (
+	schedules: BackupSchedule[],
+	scheduleNotifications: BackupScheduleNotification[],
+	scheduleMirrors: BackupScheduleMirror[],
+	params: FullExportBody,
+) => {
+	return schedules.map((schedule) => {
+		const assignments = scheduleNotifications
+			.filter((sn) => sn.scheduleId === schedule.id)
+			.map((sn) => filterMetadataOut(sn, params.includeMetadata));
+
+		const mirrors = scheduleMirrors
+			.filter((sm) => sm.scheduleId === schedule.id)
+			.map((sm) => filterMetadataOut(sm, params.includeMetadata));
+
+		return {
+			...filterMetadataOut(schedule, params.includeMetadata),
+			notifications: assignments,
+			mirrors,
+		};
+	});
+};
+
+const exportConfig = async (params: FullExportBody) => {
+	const [volumes, repositories, backupSchedulesRaw, notifications, scheduleNotifications, scheduleMirrors, users] =
+		await Promise.all([
+			db.select().from(volumesTable),
+			db.select().from(repositoriesTable),
+			db.select().from(backupSchedulesTable),
+			db.select().from(notificationDestinationsTable),
+			db.select().from(backupScheduleNotificationsTable),
+			db.select().from(backupScheduleMirrorsTable),
+			db.select().from(usersTable),
+		]);
+
+	const backupSchedules = transformBackupSchedules(backupSchedulesRaw, scheduleNotifications, scheduleMirrors, params);
+
+	const [exportVolumes, exportRepositories, exportNotifications, exportUsers] = await Promise.all([
+		exportEntities(volumes, params),
+		exportEntities(repositories, params),
+		exportEntities(notifications, params),
+		exportEntities(users, params),
+	]);
+
+	return {
+		version: 1,
+		exportedAt: new Date().toISOString(),
+		volumes: exportVolumes,
+		repositories: exportRepositories,
+		backupSchedules,
+		notificationDestinations: exportNotifications,
+		users: exportUsers,
+	};
+};
+
 export const systemService = {
 	getSystemInfo,
 	getUpdates,
+	exportConfig,
 };

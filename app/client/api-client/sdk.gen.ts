@@ -430,7 +430,7 @@ export const downloadResticPassword = <ThrowOnError extends boolean = false>(opt
  * Export full configuration including all volumes, repositories, backup schedules, and notifications
  */
 export const exportFullConfig = <ThrowOnError extends boolean = false>(options?: Options<ExportFullConfigData, ThrowOnError>) => (options?.client ?? client).post<ExportFullConfigResponses, ExportFullConfigErrors, ThrowOnError>({
-    url: '/api/v1/config/export',
+    url: '/api/v1/system/export',
     ...options,
     headers: {
         'Content-Type': 'application/json',
