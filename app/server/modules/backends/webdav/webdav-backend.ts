@@ -9,6 +9,7 @@ import { withTimeout } from "../../../utils/timeout";
 import type { VolumeBackend } from "../backend";
 import { executeMount, executeUnmount } from "../utils/backend-utils";
 import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
+import { exec } from "~/server/utils/spawn";
 
 const mount = async (config: BackendConfig, path: string) => {
 	logger.debug(`Mounting WebDAV volume ${path}...`);
@@ -116,7 +117,14 @@ const unmount = async (path: string) => {
 			return { status: BACKEND_STATUS.unmounted };
 		}
 
-		await executeUnmount(path);
+		// Try fusermount first (proper way to unmount FUSE), fallback to umount
+		try {
+			logger.debug(`Executing fusermount -uz ${path}`);
+			await exec({ command: "fusermount", args: ["-uz", path], timeout: 5000 });
+		} catch (err) {
+			logger.debug(`fusermount failed, falling back to umount: ${toMessage(err)}`);
+			await executeUnmount(path);
+		}
 
 		await fs.rmdir(path).catch(() => {});
 

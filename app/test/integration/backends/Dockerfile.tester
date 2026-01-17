@@ -1,0 +1,19 @@
+FROM oven/bun:latest
+
+RUN apt-get update && apt-get install -y \
+    cifs-utils \
+    nfs-common \
+    davfs2 \
+    sshfs \
+    kmod \
+    iputils-ping \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m davuser
+
+# Enable user_allow_other for FUSE mounts
+RUN echo "user_allow_other" >> /etc/fuse.conf
+
+WORKDIR /app
+

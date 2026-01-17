@@ -1,0 +1,57 @@
+services:
+  # The Test Runner
+  tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.tester
+    privileged: true # Required for mount operations
+    volumes:
+      - ../../../../:/app
+      - /lib/modules:/lib/modules:ro # Required for some kernel-level mount drivers (CIFS/NFS)
+    working_dir: /app
+    environment:
+      - NODE_ENV=test
+      - LOG_LEVEL=debug
+    command: tail -f /dev/null # Keep alive for exec
+
+  # Mock SMB Server
+  smb-server:
+    image: dperson/samba
+    environment:
+      - USER=testuser;testpass
+      - SHARE=testshare;/tmp/samba;yes;no;no;testuser
+    tmpfs:
+      - /tmp/samba
+
+  # Mock WebDAV Server
+  webdav-server:
+    image: bytemark/webdav
+    environment:
+      - AUTH_TYPE=Basic
+      - USERNAME=testuser
+      - PASSWORD=testpass
+    volumes:
+      - webdav-data:/var/lib/dav/data
+
+  # Mock NFS Server
+  nfs-server:
+    image: erichough/nfs-server
+    privileged: true
+    environment:
+      - NFS_EXPORT_0=/exports *(rw,sync,no_subtree_check,no_root_squash,fsid=0)
+      - NFS_VERSION=4
+    volumes:
+      - nfs-data:/exports
+
+  # Mock SFTP Server
+  sftp-server:
+    image: atmoz/sftp
+    command: testuser:testpass:1001
+    volumes:
+      - sftp-data:/home/testuser
+
+volumes:
+  webdav-data:
+  nfs-data:
+  sftp-data:
+
