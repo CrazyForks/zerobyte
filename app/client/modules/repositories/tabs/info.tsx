@@ -302,6 +302,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmDelete}
+							disabled={deleteRepo.isPending}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							<Trash2 className="h-4 w-4 mr-2" />

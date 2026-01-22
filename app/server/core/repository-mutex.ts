@@ -70,31 +70,36 @@ class RepositoryMutex {
 		);
 
 		let onAbort: () => void = () => {};
-		const lockId = await new Promise<string>((resolve, reject) => {
-			const waiter = { type: "shared" as const, operation, resolve };
-			state.waitQueue.push(waiter);
+		let lockId: string | undefined;
+		try {
+			lockId = await new Promise<string>((resolve, reject) => {
+				const waiter = { type: "shared" as const, operation, resolve };
+				state.waitQueue.push(waiter);
 
-			if (signal) {
-				onAbort = () => {
-					const index = state.waitQueue.indexOf(waiter);
-					if (index !== -1) {
-						state.waitQueue.splice(index, 1);
-						this.cleanupStateIfEmpty(repositoryId);
-						reject(signal.reason || new Error("Operation aborted"));
-					}
-				};
-				signal.addEventListener("abort", onAbort);
-			}
-		});
-
-		signal?.removeEventListener("abort", onAbort);
+				if (signal) {
+					onAbort = () => {
+						const index = state.waitQueue.indexOf(waiter);
+						if (index !== -1) {
+							state.waitQueue.splice(index, 1);
+							this.cleanupStateIfEmpty(repositoryId);
+							reject(signal.reason || new Error("Operation aborted"));
+						}
+					};
+					signal.addEventListener("abort", onAbort);
+				}
+			});
+		} finally {
+			signal?.removeEventListener("abort", onAbort);
+		}
 
 		if (signal?.aborted) {
-			this.releaseShared(repositoryId, lockId);
+			if (lockId) {
+				this.releaseShared(repositoryId, lockId);
+			}
 			throw signal.reason || new Error("Operation aborted");
 		}
 
-		return () => this.releaseShared(repositoryId, lockId);
+		return () => this.releaseShared(repositoryId, lockId!);
 	}
 
 	async acquireExclusive(repositoryId: string, operation: string, signal?: AbortSignal): Promise<() => void> {
@@ -119,32 +124,37 @@ class RepositoryMutex {
 		);
 
 		let onAbort: () => void = () => {};
-		const lockId = await new Promise<string>((resolve, reject) => {
-			const waiter = { type: "exclusive" as const, operation, resolve };
-			state.waitQueue.push(waiter);
+		let lockId: string | undefined;
+		try {
+			lockId = await new Promise<string>((resolve, reject) => {
+				const waiter = { type: "exclusive" as const, operation, resolve };
+				state.waitQueue.push(waiter);
 
-			if (signal) {
-				onAbort = () => {
-					const index = state.waitQueue.indexOf(waiter);
-					if (index !== -1) {
-						state.waitQueue.splice(index, 1);
-						this.cleanupStateIfEmpty(repositoryId);
-						reject(signal.reason || new Error("Operation aborted"));
-					}
-				};
-				signal.addEventListener("abort", onAbort);
-			}
-		});
-
-		signal?.removeEventListener("abort", onAbort);
+				if (signal) {
+					onAbort = () => {
+						const index = state.waitQueue.indexOf(waiter);
+						if (index !== -1) {
+							state.waitQueue.splice(index, 1);
+							this.cleanupStateIfEmpty(repositoryId);
+							reject(signal.reason || new Error("Operation aborted"));
+						}
+					};
+					signal.addEventListener("abort", onAbort);
+				}
+			});
+		} finally {
+			signal?.removeEventListener("abort", onAbort);
+		}
 
 		if (signal?.aborted) {
-			this.releaseExclusive(repositoryId, lockId);
+			if (lockId) {
+				this.releaseExclusive(repositoryId, lockId);
+			}
 			throw signal.reason || new Error("Operation aborted");
 		}
 
 		logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation} (${lockId})`);
-		return () => this.releaseExclusive(repositoryId, lockId);
+		return () => this.releaseExclusive(repositoryId, lockId!);
 	}
 
 	private releaseShared(repositoryId: string, lockId: string): void {

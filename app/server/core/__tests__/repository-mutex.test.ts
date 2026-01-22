@@ -94,4 +94,32 @@ describe("RepositoryMutex", () => {
 		expect(releaseEx3).toBeDefined();
 		releaseEx3();
 	});
+
+	test("should remove signal listener and not release unacquired lock on abort", async () => {
+		const repoId = "cleanup-test";
+		const controller = new AbortController();
+		const signal = controller.signal;
+
+		let removed = false;
+		const originalRemove = signal.removeEventListener.bind(signal);
+		signal.removeEventListener = (type: string, listener: any, options?: any) => {
+			if (type === "abort") removed = true;
+			return originalRemove(type, listener, options);
+		};
+
+		// Hold the lock so the next one has to wait
+		const release = await repoMutex.acquireExclusive(repoId, "holder");
+
+		const abortedAcquisition = repoMutex.acquireShared(repoId, "waiter", signal);
+
+		// Trigger abort while it's waiting
+		controller.abort();
+
+		expect(abortedAcquisition).rejects.toThrow();
+		expect(removed).toBe(true);
+		expect(repoMutex.isLocked(repoId)).toBe(true);
+
+		release();
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
 });
