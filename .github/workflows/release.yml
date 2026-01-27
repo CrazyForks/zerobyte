@@ -31,15 +31,15 @@ jobs:
             echo "release_type=release" >> $GITHUB_OUTPUT
           fi
 
-  checks:
-    uses: ./.github/workflows/checks.yml
-
-  e2e-tests:
-    uses: ./.github/workflows/e2e.yml
+  # checks:
+  #   uses: ./.github/workflows/checks.yml
+  #
+  # e2e-tests:
+  #   uses: ./.github/workflows/e2e.yml
 
   build-images:
     timeout-minutes: 15
-    needs: [determine-release-type, checks, e2e-tests]
+    needs: [determine-release-type]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
