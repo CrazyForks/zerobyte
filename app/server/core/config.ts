@@ -34,6 +34,7 @@ const envSchema = type({
 	APP_VERSION: "string = 'dev'",
 	TRUSTED_ORIGINS: "string?",
 	DISABLE_RATE_LIMITING: 'string = "false"',
+	DISABLE_SECURE_COOKIES: 'string = "false"',
 	APP_SECRET: "32 <= string <= 256",
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
@@ -46,6 +47,7 @@ const envSchema = type({
 	appVersion: s.APP_VERSION,
 	trustedOrigins: s.TRUSTED_ORIGINS?.split(",").map((origin) => origin.trim()),
 	disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
+	disableSecureCookies: s.DISABLE_SECURE_COOKIES === "true",
 	appSecret: s.APP_SECRET,
 }));
 
