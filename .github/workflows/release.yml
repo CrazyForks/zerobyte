@@ -31,11 +31,11 @@ jobs:
             echo "release_type=release" >> $GITHUB_OUTPUT
           fi
 
-  # checks:
-  #   uses: ./.github/workflows/checks.yml
-  #
-  # e2e-tests:
-  #   uses: ./.github/workflows/e2e.yml
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  e2e-tests:
+    uses: ./.github/workflows/e2e.yml
 
   build-images:
     timeout-minutes: 15
