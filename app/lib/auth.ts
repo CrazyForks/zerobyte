@@ -19,13 +19,24 @@ import { authService } from "../server/modules/auth/auth.service";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
-const createBetterAuth = (secret: string) =>
-	betterAuth({
+const createBetterAuth = (secret: string) => {
+	const origins = new Set([config.baseUrl]);
+
+	if (config.trustedOrigins) {
+		for (const origin of config.trustedOrigins) {
+			origins.add(origin);
+		}
+	}
+
+	const trustedOrigins = Array.from(origins).filter((o) => o !== undefined);
+
+	return betterAuth({
 		secret,
-		trustedOrigins: config.trustedOrigins ?? ["*"],
+		baseURL: config.baseUrl,
+		trustedOrigins: trustedOrigins,
 		advanced: {
 			cookiePrefix: "zerobyte",
-			useSecureCookies: false,
+			useSecureCookies: config.isSecure,
 		},
 		onAPIError: {
 			throw: true,
@@ -150,6 +161,7 @@ const createBetterAuth = (secret: string) =>
 			}),
 		],
 	});
+};
 
 type Auth = ReturnType<typeof createBetterAuth>;
 
