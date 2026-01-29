@@ -88,6 +88,7 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `TRUSTED_ORIGINS`     | Comma-separated list of extra trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).                          | (none)     |
 | `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                       | `info`     |
 | `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                                             | `60`       |
+| `RCLONE_CONF_DIR`     | Path to the rclone config directory inside the container. Change this if running as a non-root user.                                | `/root/.config/rclone` |
 
 ### Secret References
 
@@ -238,6 +239,14 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    +     - ~/.config/rclone:/root/.config/rclone
    ```
 
+   > **Note for non-root users:** If your container runs as a different user (e.g., TrueNAS apps), mount your config to the appropriate location and set `RCLONE_CONF_DIR`:
+   > ```yaml
+   > environment:
+   >   - RCLONE_CONF_DIR=/home/appuser/.config/rclone
+   > volumes:
+   >   - ~/.config/rclone:/home/appuser/.config/rclone:ro
+   > ```
+
 5. **Restart the Zerobyte container**:
 
    ```bash
@@ -246,9 +255,9 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    ```
 
 6. **Create a repository** in Zerobyte:
-   - Select "rclone" as the repository type
-   - Choose your configured remote from the dropdown
-   - Specify the path within your remote (e.g., `backups/zerobyte`)
+    - Select "rclone" as the repository type
+    - Choose your configured remote from the dropdown
+    - Specify the path within your remote (e.g., `backups/zerobyte`)
 
 For a complete list of supported providers, see the [rclone documentation](https://rclone.org/).
 
