@@ -208,9 +208,9 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 				"-o",
 				"ConnectionAttempts=1",
 				"-o",
-				"ServerAliveInterval=10",
+				"ServerAliveInterval=60",
 				"-o",
-				"ServerAliveCountMax=3",
+				"ServerAliveCountMax=240",
 				"-i",
 				keyPath,
 			];
