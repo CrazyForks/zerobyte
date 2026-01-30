@@ -1,5 +1,6 @@
 import { Scalar } from "@scalar/hono-api-reference";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
@@ -63,6 +64,13 @@ export const createApp = () => {
 			}),
 		);
 	}
+
+	app.use(
+		bodyLimit({
+			maxSize: 10 * 1024 * 1024, // 10MB
+			onError: (c) => c.json({ message: "Request body too large" }, 413),
+		}),
+	);
 
 	app
 		.get("healthcheck", (c) => c.json({ status: "ok" }))
