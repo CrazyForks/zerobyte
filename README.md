@@ -89,16 +89,17 @@ Zerobyte can be customized using environment variables. Below are the available 
 
 ### Environment Variables
 
-| Variable              | Description                                                                                                                               | Default    |
-| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :--------- |
-| `BASE_URL`            | **Required.** The base URL of your Zerobyte instance (e.g., `https://zerobyte.example.com`). See [Authentication](#authentication) below. | (none)     |
-| `APP_SECRET`          | **Required.** A random secret key (32+ chars) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`.       | (none)     |
-| `PORT`                | The port the web interface and API will listen on.                                                                                        | `4096`     |
-| `RESTIC_HOSTNAME`     | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker.                        | `zerobyte` |
-| `TZ`                  | Timezone for the container (e.g., `Europe/Paris`). **Crucial for accurate backup scheduling.**                                            | `UTC`      |
-| `TRUSTED_ORIGINS`     | Comma-separated list of extra trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).                                | (none)     |
-| `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                             | `info`     |
-| `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                                                   | `60`       |
+| Variable              | Description                                                                                                                               | Default                |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :--------------------- |
+| `BASE_URL`            | **Required.** The base URL of your Zerobyte instance (e.g., `https://zerobyte.example.com`). See [Authentication](#authentication) below. | (none)                 |
+| `APP_SECRET`          | **Required.** A random secret key (32+ chars) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`.       | (none)                 |
+| `PORT`                | The port the web interface and API will listen on.                                                                                        | `4096`                 |
+| `RESTIC_HOSTNAME`     | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker.                        | `zerobyte`             |
+| `TZ`                  | Timezone for the container (e.g., `Europe/Paris`). **Crucial for accurate backup scheduling.**                                            | `UTC`                  |
+| `TRUSTED_ORIGINS`     | Comma-separated list of extra trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).                                | (none)                 |
+| `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                             | `info`                 |
+| `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                                                   | `60`                   |
+| `RCLONE_CONFIG_DIR`   | Path to the rclone config directory inside the container. Change this if running as a non-root user.                                      | `/root/.config/rclone` |
 
 ### Secret References
 
@@ -248,6 +249,15 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
          - /var/lib/zerobyte:/var/lib/zerobyte
    +     - ~/.config/rclone:/root/.config/rclone
    ```
+
+   > **Note for non-root users:** If your container runs as a different user (e.g., TrueNAS apps), mount your config to the appropriate location and set `RCLONE_CONF_DIR`:
+   >
+   > ```yaml
+   > environment:
+   >   - RCLONE_CONFIG_DIR=/home/appuser/.config/rclone
+   > volumes:
+   >   - ~/.config/rclone:/home/appuser/.config/rclone:ro
+   > ```
 
 5. **Restart the Zerobyte container**:
 
