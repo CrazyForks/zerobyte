@@ -406,10 +406,6 @@ const restore = async (
 		args.push("--overwrite", options.overwrite);
 	}
 
-	if (options?.delete) {
-		args.push("--delete");
-	}
-
 	if (options?.include?.length) {
 		for (const pattern of options.include) {
 			args.push("--include", pattern);

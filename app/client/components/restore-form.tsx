@@ -37,7 +37,6 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 	const [overwriteMode, setOverwriteMode] = useState<OverwriteMode>("always");
 	const [showAdvanced, setShowAdvanced] = useState(false);
 	const [excludeXattr, setExcludeXattr] = useState("");
-	const [deleteExtraFiles, setDeleteExtraFiles] = useState(false);
 
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 
@@ -125,7 +124,6 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 			body: {
 				snapshotId,
 				include: includePaths.length > 0 ? includePaths : undefined,
-				delete: deleteExtraFiles,
 				excludeXattr: excludeXattrArray && excludeXattrArray.length > 0 ? excludeXattrArray : undefined,
 				targetPath,
 				overwrite: overwriteMode,
@@ -139,7 +137,6 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 		customTargetPath,
 		selectedPaths,
 		addBasePath,
-		deleteExtraFiles,
 		overwriteMode,
 		restoreSnapshot,
 	]);
@@ -261,16 +258,6 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 									<p className="text-xs text-muted-foreground">
 										Exclude specific extended attributes during restore (comma-separated)
 									</p>
-								</div>
-								<div className="flex items-center space-x-2">
-									<Checkbox
-										id="delete-extra"
-										checked={deleteExtraFiles}
-										onCheckedChange={(checked) => setDeleteExtraFiles(checked === true)}
-									/>
-									<Label htmlFor="delete-extra" className="text-sm font-normal cursor-pointer">
-										Delete files not present in the snapshot
-									</Label>
 								</div>
 							</CardContent>
 						)}
