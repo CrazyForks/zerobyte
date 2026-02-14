@@ -1,28 +1,28 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import path from "node:path";
 import os from "node:os";
-import { throttle } from "es-toolkit";
+import path from "node:path";
 import { type } from "arktype";
-import { RESTIC_PASS_FILE, DEFAULT_EXCLUDES, RESTIC_CACHE_DIR } from "../core/constants";
-import { config as appConfig } from "../core/config";
-import { logger } from "./logger";
-import { cryptoUtils } from "./crypto";
-import type { RetentionPolicy } from "../modules/backups/backups.dto";
-import { safeSpawn, exec } from "./spawn";
-import type { CompressionMode, RepositoryConfig, OverwriteMode, BandwidthLimit } from "~/schemas/restic";
+import { throttle } from "es-toolkit";
+import type { BandwidthLimit, CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
 import {
+	type ResticBackupProgressDto,
+	type ResticRestoreOutputDto,
+	type ResticSnapshotSummaryDto,
 	resticBackupOutputSchema,
 	resticBackupProgressSchema,
 	resticRestoreOutputSchema,
 	resticSnapshotSummarySchema,
-	type ResticBackupProgressDto,
-	type ResticRestoreOutputDto,
-	type ResticSnapshotSummaryDto,
 } from "~/schemas/restic-dto";
-import { ResticError } from "./errors";
+import { config as appConfig } from "../core/config";
+import { DEFAULT_EXCLUDES, RESTIC_CACHE_DIR, RESTIC_PASS_FILE } from "../core/constants";
 import { db } from "../db/db";
+import type { RetentionPolicy } from "../modules/backups/backups.dto";
+import { cryptoUtils } from "./crypto";
+import { ResticError } from "./errors";
 import { safeJsonParse } from "./json";
+import { logger } from "./logger";
+import { exec, safeSpawn } from "./spawn";
 
 const snapshotInfoSchema = type({
 	gid: "number?",
@@ -317,6 +317,8 @@ const backup = async (
 				const progress = resticBackupProgressSchema(jsonData);
 				if (!(progress instanceof type.errors)) {
 					options.onProgress(progress);
+				} else {
+					logger.error(progress.summary);
 				}
 			} catch (_) {
 				// Ignore JSON parse errors for non-JSON lines
@@ -379,6 +381,17 @@ const backup = async (
 	return { result, exitCode: res.exitCode };
 };
 
+const restoreProgressSchema = type({
+	message_type: "'status' | 'summary'",
+	seconds_elapsed: "number",
+	percent_done: "number = 0",
+	total_files: "number",
+	files_restored: "number = 0",
+	total_bytes: "number = 0",
+	bytes_restored: "number = 0",
+});
+
+export type RestoreProgress = typeof restoreProgressSchema.infer;
 const restore = async (
 	config: RepositoryConfig,
 	snapshotId: string,
@@ -390,6 +403,8 @@ const restore = async (
 		excludeXattr?: string[];
 		delete?: boolean;
 		overwrite?: OverwriteMode;
+		onProgress?: (progress: RestoreProgress) => void;
+		signal?: AbortSignal;
 	},
 ) => {
 	const repoUrl = buildRepoUrl(config);
@@ -421,8 +436,34 @@ const restore = async (
 
 	addCommonArgs(args, env, config);
 
+	const streamProgress = throttle((data: string) => {
+		if (options?.onProgress) {
+			try {
+				const jsonData = JSON.parse(data);
+				const progress = restoreProgressSchema(jsonData);
+				if (!(progress instanceof type.errors)) {
+					options.onProgress(progress);
+				} else {
+					logger.error(progress.summary);
+				}
+			} catch (_) {
+				// Ignore JSON parse errors for non-JSON lines
+			}
+		}
+	}, 1000);
+
 	logger.debug(`Executing: restic ${args.join(" ")}`);
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await safeSpawn({
+		command: "restic",
+		args,
+		env,
+		signal: options?.signal,
+		onStdout: (data) => {
+			if (options?.onProgress) {
+				streamProgress(data);
+			}
+		},
+	});
 
 	await cleanupTemporaryKeys(env);
 
@@ -432,16 +473,15 @@ const restore = async (
 	}
 
 	const lastLine = res.summary.trim();
-	let summaryLine = "";
+	let summaryLine: unknown = {};
 	try {
-		const resSummary = JSON.parse(lastLine ?? "{}");
-		summaryLine = resSummary;
+		summaryLine = JSON.parse(lastLine ?? "{}");
 	} catch (_) {
-		logger.warn("Failed to parse restic backup output JSON summary.", lastLine);
-		summaryLine = "{}";
+		logger.warn("Failed to parse restic restore output JSON summary.", lastLine);
+		summaryLine = {};
 	}
 
-	logger.debug(`Restic restore output last line: ${summaryLine}`);
+	logger.debug(`Restic restore output last line: ${JSON.stringify(summaryLine)}`);
 	const result = resticRestoreOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {

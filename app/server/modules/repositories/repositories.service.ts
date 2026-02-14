@@ -1,29 +1,34 @@
 import crypto from "node:crypto";
-import { and, eq } from "drizzle-orm";
-import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
-import { db } from "../../db/db";
-import { repositoriesTable } from "../../db/schema";
-import { toMessage } from "../../utils/errors";
-import { generateShortId } from "../../utils/id";
-import { restic, buildEnv, buildRepoUrl, addCommonArgs, cleanupTemporaryKeys } from "../../utils/restic";
-import { safeSpawn } from "../../utils/spawn";
-import { cryptoUtils } from "../../utils/crypto";
-import { cache } from "../../utils/cache";
-import { repoMutex } from "../../core/repository-mutex";
 import { type } from "arktype";
+import { and, eq } from "drizzle-orm";
 import {
-	repositoryConfigSchema,
+	BadRequestError,
+	ConflictError,
+	InternalServerError,
+	NotFoundError,
+} from "http-errors-enhanced";
+import {
 	type CompressionMode,
 	type OverwriteMode,
 	type RepositoryConfig,
+	repositoryConfigSchema,
 } from "~/schemas/restic";
-import { getOrganizationId } from "~/server/core/request-context";
 import { serverEvents } from "~/server/core/events";
-import { executeDoctor } from "./doctor";
+import { getOrganizationId } from "~/server/core/request-context";
 import { logger } from "~/server/utils/logger";
 import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
+import { repoMutex } from "../../core/repository-mutex";
+import { db } from "../../db/db";
+import { repositoriesTable } from "../../db/schema";
+import { cache } from "../../utils/cache";
+import { cryptoUtils } from "../../utils/crypto";
+import { toMessage } from "../../utils/errors";
+import { generateShortId } from "../../utils/id";
+import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys, restic } from "../../utils/restic";
+import { safeSpawn } from "../../utils/spawn";
 import { backupsService } from "../backups/backups.service";
 import type { UpdateRepositoryBody } from "./repositories.dto";
+import { executeDoctor } from "./doctor";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -334,7 +339,31 @@ const restoreSnapshot = async (
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
 	try {
-		const result = await restic.restore(repository.config, snapshotId, target, { ...options, organizationId });
+		serverEvents.emit("restore:started", {
+			organizationId,
+			repositoryId: repository.id,
+			snapshotId,
+		});
+
+		const result = await restic.restore(repository.config, snapshotId, target, {
+			...options,
+			organizationId,
+			onProgress: (progress) => {
+				serverEvents.emit("restore:progress", {
+					organizationId,
+					repositoryId: repository.id,
+					snapshotId,
+					...progress,
+				});
+			},
+		});
+
+		serverEvents.emit("restore:completed", {
+			organizationId,
+			repositoryId: repository.id,
+			snapshotId,
+			status: "success",
+		});
 
 		return {
 			success: true,
@@ -342,6 +371,15 @@ const restoreSnapshot = async (
 			filesRestored: result.files_restored,
 			filesSkipped: result.files_skipped,
 		};
+	} catch (error) {
+		serverEvents.emit("restore:completed", {
+			organizationId,
+			repositoryId: repository.id,
+			snapshotId,
+			status: "error",
+			error: toMessage(error),
+		});
+		throw error;
 	} finally {
 		releaseLock();
 	}
