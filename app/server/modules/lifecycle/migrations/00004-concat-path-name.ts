@@ -56,7 +56,7 @@ const execute = async () => {
 			const config = { ...(configValue as Record<string, unknown>) };
 			const localRepositoryName = asString(config.name);
 
-			if (!hasValue(localRepositoryName)) {
+			if (!hasValue(localRepositoryName) || config.isExistingRepository === true) {
 				continue;
 			}
 
