@@ -18,6 +18,7 @@ import { handleServiceError } from "./utils/errors";
 import { logger } from "./utils/logger";
 import { config } from "./core/config";
 import { auth } from "~/server/lib/auth";
+import { db } from "./db/db";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -38,6 +39,7 @@ export const scalarDescriptor = Scalar({
 });
 
 export const createApp = () => {
+	db.run("PRAGMA foreign_keys = ON;");
 	const app = new Hono();
 
 	if (config.trustedOrigins) {
