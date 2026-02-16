@@ -4,6 +4,8 @@ import { repositoriesTable } from "../../../db/schema";
 import { logger } from "../../../utils/logger";
 import { toMessage } from "~/server/utils/errors";
 import { REPOSITORY_BASE } from "~/server/core/constants";
+import { repositoryConfigSchema } from "~/schemas/restic";
+import { type } from "arktype";
 
 type MigrationError = { name: string; error: string };
 
@@ -43,9 +45,9 @@ const execute = async () => {
 
 	for (const repository of localRepositories) {
 		try {
-			const configValue = repository.config as unknown;
+			const config = repository.config as Record<string, unknown>;
 
-			if (typeof configValue !== "object" || configValue === null || Array.isArray(configValue)) {
+			if (typeof config !== "object" || config === null || Array.isArray(config)) {
 				errors.push({
 					name: `repository:${repository.id}`,
 					error: "Repository config is not a valid JSON object",
@@ -53,7 +55,6 @@ const execute = async () => {
 				continue;
 			}
 
-			const config = { ...(configValue as Record<string, unknown>) };
 			const localRepositoryName = asString(config.name);
 
 			if (!hasValue(localRepositoryName) || config.isExistingRepository === true) {
@@ -67,12 +68,18 @@ const execute = async () => {
 
 			config.path = buildPath(currentPath, localRepositoryName);
 
+			const newConfig = repositoryConfigSchema(config);
+			if (newConfig instanceof type.errors) {
+				errors.push({
+					name: `repository:${repository.id}`,
+					error: `Validation failed for updated repository config: ${newConfig.summary}`,
+				});
+				continue;
+			}
+
 			await db
 				.update(repositoriesTable)
-				.set({
-					config: config as typeof repository.config,
-					updatedAt: Date.now(),
-				})
+				.set({ config: newConfig, updatedAt: Date.now() })
 				.where(and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.type, "local")));
 
 			migratedCount += 1;
