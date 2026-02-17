@@ -87,9 +87,9 @@ export const ScheduleSummary = (props: Props) => {
 
 	return (
 		<div className="space-y-4">
-			<Card>
+			<Card className="@container">
 				<CardHeader className="space-y-4">
-					<div className="flex flex-col @sm:flex-row @sm:items-center @sm:justify-between gap-4">
+					<div className="flex flex-col @medium:flex-row @medium:items-center @medium:justify-between gap-4">
 						<div>
 							<CardTitle>{schedule.name}</CardTitle>
 							<CardDescription className="mt-1">
@@ -112,7 +112,7 @@ export const ScheduleSummary = (props: Props) => {
 								</Link>
 							</CardDescription>
 						</div>
-						<div className="flex items-center gap-2 justify-between @sm:justify-start">
+						<div className="flex items-center gap-2 justify-between @medium:justify-start">
 							<OnOff
 								isOn={schedule.enabled}
 								toggle={handleToggleEnabled}
@@ -121,19 +121,19 @@ export const ScheduleSummary = (props: Props) => {
 							/>
 						</div>
 					</div>
-					<div className="flex flex-col @lg:flex-row gap-2">
+					<div className="flex flex-col @wide:flex-row gap-2">
 						{schedule.lastBackupStatus === "in_progress" ? (
 							<Button
 								variant="destructive"
 								size="sm"
 								onClick={() => setShowStopConfirm(true)}
-								className="w-full @md:w-auto"
+								className="w-full @medium:w-auto"
 							>
 								<Square className="h-4 w-4 mr-2" />
 								<span>Stop backup</span>
 							</Button>
 						) : (
-							<Button variant="default" size="sm" onClick={handleRunBackupNow} className="w-full @md:w-auto">
+							<Button variant="default" size="sm" onClick={handleRunBackupNow} className="w-full @medium:w-auto">
 								<Play className="h-4 w-4 mr-2" />
 								<span>Backup now</span>
 							</Button>
@@ -144,13 +144,13 @@ export const ScheduleSummary = (props: Props) => {
 								size="sm"
 								loading={runForget.isPending}
 								onClick={() => setShowForgetConfirm(true)}
-								className="w-full @md:w-auto"
+								className="w-full @medium:w-auto"
 							>
 								<Eraser className="h-4 w-4 mr-2" />
 								<span>Run cleanup</span>
 							</Button>
 						)}
-						<Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="w-full @md:w-auto">
+						<Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="w-full @medium:w-auto">
 							<Pencil className="h-4 w-4 mr-2" />
 							<span>Edit schedule</span>
 						</Button>
@@ -158,14 +158,14 @@ export const ScheduleSummary = (props: Props) => {
 							variant="outline"
 							size="sm"
 							onClick={() => setShowDeleteConfirm(true)}
-							className="text-destructive hover:text-destructive w-full @md:w-auto"
+							className="text-destructive hover:text-destructive w-full @medium:w-auto"
 						>
 							<Trash2 className="h-4 w-4 mr-2" />
 							<span>Delete</span>
 						</Button>
 					</div>
 				</CardHeader>
-				<CardContent className="grid gap-4 grid-cols-1 @md:grid-cols-2 @lg:grid-cols-4">
+				<CardContent className="grid gap-4 grid-cols-1 @medium:grid-cols-2 @wide:grid-cols-4">
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Schedule</p>
 						<p className="font-medium">{summary.scheduleLabel}</p>
@@ -195,7 +195,7 @@ export const ScheduleSummary = (props: Props) => {
 					</div>
 
 					{schedule.lastBackupStatus === "warning" && (
-						<div className="@md:col-span-2 @lg:col-span-4">
+						<div className="@medium:col-span-2 @wide:col-span-4">
 							<p className="text-xs uppercase text-muted-foreground">Warning Details</p>
 							<p className="font-mono text-sm text-yellow-600 whitespace-pre-wrap wrap-break-word">
 								{schedule.lastBackupError ??
@@ -205,7 +205,7 @@ export const ScheduleSummary = (props: Props) => {
 					)}
 
 					{schedule.lastBackupError && schedule.lastBackupStatus === "error" && (
-						<div className="@md:col-span-2 @lg:col-span-4">
+						<div className="@medium:col-span-2 @wide:col-span-4">
 							<p className="text-xs uppercase text-muted-foreground">Error details</p>
 							<p className="font-mono text-sm text-red-600 whitespace-pre-wrap wrap-break-word">
 								{schedule.lastBackupError}

@@ -73,7 +73,7 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 					control={form.control}
 					name="weeklyDay"
 					render={({ field }) => (
-						<FormItem className="@md:col-span-2">
+						<FormItem className="@medium:col-span-2">
 							<FormLabel>Execution day</FormLabel>
 							<FormControl>
 								<Select {...field} onValueChange={field.onChange}>
@@ -101,7 +101,7 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 					control={form.control}
 					name="monthlyDays"
 					render={({ field }) => (
-						<FormItem className="@md:col-span-2">
+						<FormItem className="@medium:col-span-2">
 							<FormLabel>Days of the month</FormLabel>
 							<FormControl>
 								<div className="grid grid-cols-7 gap-4 w-max">

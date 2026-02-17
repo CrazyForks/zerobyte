@@ -105,14 +105,14 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				id={formId}
 			>
 				<div className="grid gap-4 min-w-0">
-					<Card className="min-w-0">
+					<Card className="min-w-0 @container">
 						<CardHeader>
 							<CardTitle>Backup automation</CardTitle>
 							<CardDescription className="mt-1">
 								Schedule automated backups of <strong>{volume.name}</strong> to a secure repository.
 							</CardDescription>
 						</CardHeader>
-						<CardContent className="grid gap-6 @md:grid-cols-2">
+						<CardContent className="grid gap-6 @medium:grid-cols-2">
 							<BasicInfoSection form={form} volume={volume} />
 							<FrequencySection form={form} frequency={frequency} />
 						</CardContent>
@@ -152,12 +152,12 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 						</CardContent>
 					</Card>
 
-					<Card className="min-w-0">
+					<Card className="min-w-0 @container">
 						<CardHeader>
 							<CardTitle>Retention policy</CardTitle>
 							<CardDescription>Define how many snapshots to keep. Leave empty to keep all.</CardDescription>
 						</CardHeader>
-						<CardContent className="grid gap-4 @md:grid-cols-2">
+						<CardContent className="grid gap-4 @medium:grid-cols-2">
 							<RetentionSection form={form} />
 						</CardContent>
 					</Card>
