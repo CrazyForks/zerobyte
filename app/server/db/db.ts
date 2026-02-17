@@ -19,6 +19,20 @@ export const db = drizzle({ client: sqlite, relations, schema });
 
 let migrationsPromise: Promise<void> | undefined;
 
+const normalizeLegacyMigrationTimestamps = () => {
+	const drizzleMigrationsTableExists = sqlite
+		.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations' LIMIT 1")
+		.get();
+
+	if (!drizzleMigrationsTableExists) {
+		return;
+	}
+
+	sqlite.run(
+		"UPDATE __drizzle_migrations SET created_at = CAST(created_at / 1000 AS INTEGER) * 1000 WHERE created_at % 1000 != 0",
+	);
+};
+
 const runMigrations = async () => {
 	let migrationsFolder: string;
 
@@ -29,6 +43,8 @@ const runMigrations = async () => {
 	} else {
 		migrationsFolder = path.join(process.cwd(), "app", "drizzle");
 	}
+
+	normalizeLegacyMigrationTimestamps();
 
 	migrate(db, { migrationsFolder });
 
