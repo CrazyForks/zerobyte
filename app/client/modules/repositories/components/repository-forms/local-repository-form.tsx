@@ -3,7 +3,7 @@ import type { UseFormReturn } from "react-hook-form";
 import { Check, Pencil, X, AlertTriangle } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { FormItem, FormLabel, FormDescription, FormField, FormControl } from "../../../../components/ui/form";
-import { DirectoryBrowser } from "../../../../components/directory-browser";
+import { DirectoryBrowser } from "../../../../components/file-browsers/directory-browser";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -97,9 +97,7 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 							</AlertDialogHeader>
 							<div className="py-4">
 								<DirectoryBrowser
-									onSelectPath={(path) => {
-										field.onChange(path);
-									}}
+									onSelectPath={field.onChange}
 									selectedPath={field.value || constants.REPOSITORY_BASE}
 								/>
 							</div>

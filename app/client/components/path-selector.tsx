@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DirectoryBrowser } from "./directory-browser";
+import { DirectoryBrowser } from "./file-browsers/directory-browser";
 import { Button } from "./ui/button";
 
 type Props = {
@@ -15,11 +15,11 @@ export const PathSelector = ({ value, onChange }: Props) => {
 		return (
 			<div className="space-y-2">
 				<DirectoryBrowser
+					selectedPath={value}
 					onSelectPath={(path) => {
 						onChange(path);
 						setShowBrowser(false);
 					}}
-					selectedPath={value}
 				/>
 				<Button type="button" variant="ghost" size="sm" onClick={() => setShowBrowser(false)}>
 					Cancel
