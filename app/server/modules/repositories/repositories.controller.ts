@@ -1,6 +1,8 @@
+import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import { streamSSE } from "hono/streaming";
+import contentDisposition from "content-disposition";
 import {
 	createRepositoryBody,
 	createRepositoryDto,
@@ -19,6 +21,8 @@ import {
 	listSnapshotFilesQuery,
 	listSnapshotsDto,
 	listSnapshotsFilters,
+	dumpSnapshotDto,
+	dumpSnapshotQuery,
 	restoreSnapshotBody,
 	restoreSnapshotDto,
 	tagSnapshotsBody,
@@ -165,6 +169,30 @@ export const repositoriesController = new Hono()
 			return c.json<ListSnapshotFilesDto>(result, 200);
 		},
 	)
+	.get("/:shortId/snapshots/:snapshotId/dump", dumpSnapshotDto, validator("query", dumpSnapshotQuery), async (c) => {
+		const { shortId, snapshotId } = c.req.param();
+		const { path, kind } = c.req.valid("query");
+
+		const dumpStream = await repositoriesService.dumpSnapshot(shortId, snapshotId, path, kind);
+		const signal = c.req.raw.signal;
+
+		if (signal.aborted) {
+			dumpStream.abort();
+		} else {
+			signal.addEventListener("abort", () => dumpStream.abort(), { once: true });
+		}
+
+		const webStream = Readable.toWeb(dumpStream.stream) as unknown as ReadableStream<Uint8Array>;
+
+		return new Response(webStream, {
+			status: 200,
+			headers: {
+				"Content-Type": dumpStream.contentType,
+				"Content-Disposition": contentDisposition(dumpStream.filename || "snapshot.tar"),
+				"X-Content-Type-Options": "nosniff",
+			},
+		});
+	})
 	.post("/:shortId/restore", restoreSnapshotDto, validator("json", restoreSnapshotBody), async (c) => {
 		const { shortId } = c.req.param();
 		const { snapshotId, ...options } = c.req.valid("json");

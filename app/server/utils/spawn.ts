@@ -14,7 +14,11 @@ export const exec = async ({ command, args = [], env = {}, ...rest }: ExecProps)
 	};
 
 	try {
-		const { stdout, stderr } = await promisify(execFile)(command, args, { ...options, ...rest, encoding: "utf8" });
+		const { stdout, stderr } = await promisify(execFile)(command, args, {
+			...options,
+			...rest,
+			encoding: "utf8",
+		});
 
 		return { exitCode: 0, stdout, stderr };
 	} catch (error) {
@@ -28,23 +32,39 @@ export const exec = async ({ command, args = [], env = {}, ...rest }: ExecProps)
 	}
 };
 
-export interface SafeSpawnParams {
+export interface SafeSpawnParamsBase {
 	command: string;
 	args: string[];
 	env?: NodeJS.ProcessEnv;
 	signal?: AbortSignal;
-	onStdout?: (line: string) => void;
 	onStderr?: (error: string) => void;
+	onSpawn?: (child: ReturnType<typeof spawn>) => void;
 }
 
-type SpawnResult = {
+export interface SafeSpawnParamsLines extends SafeSpawnParamsBase {
+	stdoutMode?: "lines";
+	onStdout?: (line: string) => void;
+}
+
+export interface SafeSpawnParamsRaw extends SafeSpawnParamsBase {
+	stdoutMode: "raw";
+	onStdout?: never;
+}
+
+export type SafeSpawnParams = SafeSpawnParamsLines | SafeSpawnParamsRaw;
+
+export type SpawnResult = {
 	exitCode: number;
 	summary: string;
 	error: string;
 };
 
-export const safeSpawn = (params: SafeSpawnParams) => {
-	const { command, args, env = {}, signal, onStdout, onStderr } = params;
+export function safeSpawn(params: SafeSpawnParamsLines): Promise<SpawnResult>;
+export function safeSpawn(params: SafeSpawnParamsRaw): Promise<SpawnResult>;
+export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
+	const { command, args, env = {}, signal, onStderr, onSpawn } = params;
+	const stdoutMode = params.stdoutMode ?? "lines";
+	const onStdout = stdoutMode === "lines" ? params.onStdout : undefined;
 
 	let lastStdout = "";
 	let lastStderr = "";
@@ -56,19 +76,25 @@ export const safeSpawn = (params: SafeSpawnParams) => {
 			stdio: ["ignore", "pipe", "pipe"],
 		});
 
-		child.stdout.setEncoding("utf8");
+		onSpawn?.(child);
+
 		child.stderr.setEncoding("utf8");
 
-		const rl = createInterface({ input: child.stdout });
 		const rlErr = createInterface({ input: child.stderr });
 
-		rl.on("line", (line) => {
-			if (onStdout) onStdout(line);
-			const trimmed = line.trim();
-			if (trimmed.length > 0) {
-				lastStdout = line;
-			}
-		});
+		if (stdoutMode === "lines") {
+			child.stdout.setEncoding("utf8");
+
+			const rl = createInterface({ input: child.stdout });
+
+			rl.on("line", (line) => {
+				if (onStdout) onStdout(line);
+				const trimmed = line.trim();
+				if (trimmed.length > 0) {
+					lastStdout = line;
+				}
+			});
+		}
 
 		rlErr.on("line", (line) => {
 			if (onStderr) onStderr(line);
@@ -79,11 +105,19 @@ export const safeSpawn = (params: SafeSpawnParams) => {
 		});
 
 		child.on("error", (err) => {
-			resolve({ exitCode: -1, summary: lastStdout, error: err.message || lastStderr });
+			resolve({
+				exitCode: -1,
+				summary: lastStdout,
+				error: err.message || lastStderr,
+			});
 		});
 
 		child.on("close", (code) => {
-			resolve({ exitCode: code ?? -1, summary: lastStdout, error: lastStderr });
+			resolve({
+				exitCode: code ?? -1,
+				summary: lastStdout,
+				error: lastStderr,
+			});
 		});
 	});
-};
+}

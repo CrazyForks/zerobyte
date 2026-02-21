@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import nodePath from "node:path";
 import { type } from "arktype";
 import { and, eq } from "drizzle-orm";
 import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
@@ -22,10 +23,11 @@ import { generateShortId } from "../../utils/id";
 import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys, restic } from "../../utils/restic";
 import { safeSpawn } from "../../utils/spawn";
 import { backupsService } from "../backups/backups.service";
-import type { UpdateRepositoryBody } from "./repositories.dto";
-import { executeDoctor } from "./doctor";
+import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { findCommonAncestor } from "~/utils/common-ancestor";
+import { prepareSnapshotDump } from "./helpers/dump";
+import { executeDoctor } from "./helpers/doctor";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -386,6 +388,66 @@ const restoreSnapshot = async (
 		throw error;
 	} finally {
 		releaseLock();
+	}
+};
+
+const dumpSnapshot = async (shortId: string, snapshotId: string, path?: string, kind?: DumpPathKind) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(shortId);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const releaseLock = await repoMutex.acquireShared(repository.id, `dump:${snapshotId}`);
+	let dumpStream: Awaited<ReturnType<typeof restic.dump>> | undefined = undefined;
+
+	try {
+		const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
+		const preparedDump = prepareSnapshotDump({ snapshotId, snapshotPaths: snapshot.paths, requestedPath: path });
+		const dumpOptions: Parameters<typeof restic.dump>[2] = {
+			organizationId,
+			path: preparedDump.path,
+		};
+
+		let filename = preparedDump.filename;
+		let contentType = "application/x-tar";
+
+		if (path && preparedDump.path !== "/") {
+			if (!kind) {
+				throw new BadRequestError("Path kind is required when downloading a specific snapshot path");
+			}
+
+			if (kind === "file") {
+				dumpOptions.archive = false;
+				contentType = "application/octet-stream";
+				const fileName = nodePath.posix.basename(preparedDump.path);
+				if (fileName) {
+					filename = fileName;
+				}
+			}
+		}
+
+		dumpStream = await restic.dump(repository.config, preparedDump.snapshotRef, dumpOptions);
+
+		serverEvents.emit("dump:started", {
+			organizationId,
+			repositoryId: repository.shortId,
+			snapshotId,
+			path: preparedDump.path,
+			filename,
+		});
+
+		const completion = dumpStream.completion.finally(releaseLock);
+		void completion.catch(() => {});
+
+		return { ...dumpStream, completion, filename, contentType };
+	} catch (error) {
+		if (dumpStream) {
+			dumpStream.abort();
+		}
+		releaseLock();
+		throw error;
 	}
 };
 
@@ -777,6 +839,7 @@ export const repositoriesService = {
 	listSnapshots,
 	listSnapshotFiles,
 	restoreSnapshot,
+	dumpSnapshot,
 	getSnapshotDetails,
 	checkHealth,
 	startDoctor,

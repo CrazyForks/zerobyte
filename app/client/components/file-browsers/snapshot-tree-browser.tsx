@@ -4,13 +4,7 @@ import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-qu
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-
-const normalizeAbsolutePath = (path?: string): string => {
-	if (!path) return "/";
-	const withLeadingSlash = path.startsWith("/") ? path : `/${path}`;
-	const trimmed = withLeadingSlash.replace(/\/+$/, "");
-	return trimmed || "/";
-};
+import { normalizeAbsolutePath } from "~/utils/path";
 
 type SnapshotTreeBrowserProps = FileBrowserUiProps & {
 	repositoryId: string;
@@ -18,6 +12,7 @@ type SnapshotTreeBrowserProps = FileBrowserUiProps & {
 	basePath?: string;
 	pageSize?: number;
 	enabled?: boolean;
+	onSingleSelectionKindChange?: (kind: "file" | "dir" | null) => void;
 };
 
 export const SnapshotTreeBrowser = ({
@@ -28,7 +23,7 @@ export const SnapshotTreeBrowser = ({
 	enabled = true,
 	...uiProps
 }: SnapshotTreeBrowserProps) => {
-	const { selectedPaths, onSelectionChange, ...fileBrowserUiProps } = uiProps;
+	const { selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
 	const normalizedBasePath = normalizeAbsolutePath(basePath);
 
@@ -72,20 +67,6 @@ export const SnapshotTreeBrowser = ({
 		return displayPaths;
 	}, [selectedPaths, stripBasePath]);
 
-	const handleSelectionChange = useCallback(
-		(nextDisplayPaths: Set<string>) => {
-			if (!onSelectionChange) return;
-
-			const nextFullPaths = new Set<string>();
-			for (const displayPath of nextDisplayPaths) {
-				nextFullPaths.add(addBasePath(displayPath));
-			}
-
-			onSelectionChange(nextFullPaths);
-		},
-		[onSelectionChange, addBasePath],
-	);
-
 	const fileBrowser = useFileBrowser({
 		initialData: data,
 		isLoading,
@@ -118,6 +99,41 @@ export const SnapshotTreeBrowser = ({
 			add: addBasePath,
 		},
 	});
+
+	const displayPathKinds = useMemo(() => {
+		const kinds = new Map<string, "file" | "dir">();
+		for (const entry of fileBrowser.fileArray) {
+			kinds.set(entry.path, entry.type === "file" ? "file" : "dir");
+		}
+		return kinds;
+	}, [fileBrowser.fileArray]);
+
+	const handleSelectionChange = useCallback(
+		(nextDisplayPaths: Set<string>) => {
+			if (!onSelectionChange) return;
+
+			const nextFullPaths = new Set<string>();
+			for (const displayPath of nextDisplayPaths) {
+				nextFullPaths.add(addBasePath(displayPath));
+			}
+
+			if (onSingleSelectionKindChange) {
+				if (nextDisplayPaths.size === 1) {
+					const [selectedDisplayPath] = nextDisplayPaths;
+					if (selectedDisplayPath) {
+						onSingleSelectionKindChange(displayPathKinds.get(selectedDisplayPath) ?? null);
+					} else {
+						onSingleSelectionKindChange(null);
+					}
+				} else {
+					onSingleSelectionKindChange(null);
+				}
+			}
+
+			onSelectionChange(nextFullPaths);
+		},
+		[onSelectionChange, addBasePath, onSingleSelectionKindChange, displayPathKinds],
+	);
 
 	const errorDetails = parseError(error)?.message;
 	const errorMessage = errorDetails
