@@ -15,6 +15,7 @@ import {
 	resticBackupProgressSchema,
 	resticRestoreOutputSchema,
 	resticSnapshotSummarySchema,
+	resticStatsSchema,
 } from "~/schemas/restic-dto";
 import { config as appConfig } from "../core/config";
 import { DEFAULT_EXCLUDES, RESTIC_CACHE_DIR, RESTIC_PASS_FILE } from "../core/constants";
@@ -691,6 +692,32 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[]; o
 	return result;
 };
 
+const stats = async (config: RepositoryConfig, options: { organizationId: string }) => {
+	const repoUrl = buildRepoUrl(config);
+	const env = await buildEnv(config, options.organizationId);
+
+	const args = ["--repo", repoUrl, "stats", "--mode", "raw-data"];
+	addCommonArgs(args, env, config);
+
+	const res = await exec({ command: "restic", args, env });
+	await cleanupTemporaryKeys(env);
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic stats retrieval failed: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr);
+	}
+
+	const parsedJson = safeJsonParse<unknown>(res.stdout);
+	const result = resticStatsSchema(parsedJson);
+
+	if (result instanceof type.errors) {
+		logger.error(`Restic stats output validation failed: ${result.summary}`);
+		throw new Error(`Restic stats output validation failed: ${result.summary}`);
+	}
+
+	return result;
+};
+
 export type ResticForgetResponse = ForgetGroup[];
 
 export interface ForgetGroup {
@@ -1230,6 +1257,7 @@ export const restic = {
 	restore,
 	dump,
 	snapshots,
+	stats,
 	forget,
 	deleteSnapshot,
 	deleteSnapshots,

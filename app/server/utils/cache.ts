@@ -54,14 +54,20 @@ export const createCache = (options: CacheOptions = {}) => {
 		stmt.run(key);
 	};
 
+	const escapeLikePattern = (pattern: string): string => {
+		return pattern.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+	};
+
 	const delByPrefix = (prefix: string) => {
-		const stmt = db.prepare("DELETE FROM cache WHERE key LIKE ?");
-		stmt.run(`${prefix}%`);
+		const escapedPrefix = escapeLikePattern(prefix);
+		const stmt = db.prepare("DELETE FROM cache WHERE key LIKE ? ESCAPE '\\'");
+		stmt.run(`${escapedPrefix}%`);
 	};
 
 	const getByPrefix = <T>(prefix: string): { key: string; value: T }[] => {
-		const stmt = db.prepare("SELECT key, value, expiration FROM cache WHERE key LIKE ?");
-		const rows = stmt.all(`${prefix}%`) as { key: string; value: string; expiration: number }[];
+		const escapedPrefix = escapeLikePattern(prefix);
+		const stmt = db.prepare("SELECT key, value, expiration FROM cache WHERE key LIKE ? ESCAPE '\\'");
+		const rows = stmt.all(`${escapedPrefix}%`) as { key: string; value: string; expiration: number }[];
 
 		const now = Date.now();
 		const results: { key: string; value: T }[] = [];
@@ -97,6 +103,20 @@ export const createCache = (options: CacheOptions = {}) => {
 		getByPrefix,
 		clear,
 	};
+};
+
+export const cacheKeys = {
+	repository: {
+		all: (repositoryId: string) => `repo:${repositoryId}:`,
+		stats: (repositoryId: string) => `repo:${repositoryId}:stats`,
+		snapshots: (repositoryId: string, backupId = "all") => `repo:${repositoryId}:snapshots:${backupId}`,
+		ls: (repositoryId: string, snapshotId: string, path = "root", offset: number, limit: number) =>
+			`repo:${repositoryId}:ls:${snapshotId}:${path}:${offset}:${limit}`,
+		retention: (repositoryId: string, scheduleId: string) => `repo:${repositoryId}:retention:${scheduleId}`,
+	},
+	system: {
+		githubReleases: (version: string) => `system:updates:${version}`,
+	},
 };
 
 export const cache = createCache();
