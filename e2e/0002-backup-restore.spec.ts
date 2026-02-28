@@ -158,6 +158,9 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 	const configIncludedFile = `config-${runId}.json`;
 	const configExcludedFile = `secret-${runId}.json`;
 	const configNonJsonFile = `config-${runId}.txt`;
+	const rootDbFile = `root-${runId}.db`;
+	const secondRootDbFile = `archive-${runId}.db`;
+	const rootNonDbFile = `root-${runId}.txt`;
 
 	const keptPath = path.join(testDataPath, keptDir);
 	const secondKeptPath = path.join(testDataPath, secondKeptDir);
@@ -190,6 +193,10 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 	fs.writeFileSync(path.join(configPath, configExcludedFile), "json excluded by absolute exclude");
 	fs.writeFileSync(path.join(configPath, configNonJsonFile), "not included by /config/*.json");
 
+	fs.writeFileSync(path.join(testDataPath, rootDbFile), "root db include");
+	fs.writeFileSync(path.join(testDataPath, secondRootDbFile), "second root db include");
+	fs.writeFileSync(path.join(testDataPath, rootNonDbFile), "root non-db exclude");
+
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
@@ -200,6 +207,7 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 			`/${blockedDir}`,
 			`/${dataDir}/**`,
 			`/${configDir}/*.json`,
+			"*.db",
 			"**/*.xyz",
 		].join("\n"),
 		excludePatterns: [".DS_Store", "*.tmp", `/${configDir}/secret*.json`].join("\n"),
@@ -227,12 +235,15 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 	await expect(page.getByRole("button", { name: /glob-only\.xyz/ })).toBeVisible();
 	await expect(page.getByRole("button", { name: new RegExp(dataIncludedFile.replace(".", "\\.")) })).toBeVisible();
 	await expect(page.getByRole("button", { name: new RegExp(configIncludedFile.replace(".", "\\.")) })).toBeVisible();
+	await expect(page.getByRole("button", { name: new RegExp(rootDbFile.replace(".", "\\.")) })).toBeVisible();
+	await expect(page.getByRole("button", { name: new RegExp(secondRootDbFile.replace(".", "\\.")) })).toBeVisible();
 
 	await expect(page.getByRole("button", { name: /\.DS_Store/ })).toHaveCount(0);
 	await expect(page.getByRole("button", { name: /skip\.tmp/ })).toHaveCount(0);
 	await expect(page.getByRole("button", { name: new RegExp(configExcludedFile.replace(".", "\\.")) })).toHaveCount(0);
 	await expect(page.getByRole("button", { name: new RegExp(configNonJsonFile.replace(".", "\\.")) })).toHaveCount(0);
+	await expect(page.getByRole("button", { name: new RegExp(rootNonDbFile.replace(".", "\\.")) })).toHaveCount(0);
 
-	await expect(page.getByRole("button", { name: /\.nobackup/ })).toHaveCount(0);
+	await expect(page.getByRole("button", { name: /\.nobackup/ })).toBeVisible();
 	await expect(page.getByRole("button", { name: /blocked\.xyz/ })).toHaveCount(0);
 });
