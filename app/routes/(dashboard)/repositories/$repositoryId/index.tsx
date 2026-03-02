@@ -14,20 +14,19 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/")
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
 		const snapshotOptions = listSnapshotsOptions({ path: { shortId: params.repositoryId } });
-		const schedulesOptions = listBackupSchedulesOptions();
 		const statsOptions = getRepositoryStatsOptions({ path: { shortId: params.repositoryId } });
 
-		const [res] = await Promise.all([
+		const [res, schedules] = await Promise.all([
 			context.queryClient.ensureQueryData(getRepositoryOptions({ path: { shortId: params.repositoryId } })),
+			context.queryClient.ensureQueryData(listBackupSchedulesOptions()),
 			prefetchOrSkip(context.queryClient, snapshotOptions),
-			prefetchOrSkip(context.queryClient, schedulesOptions),
 			prefetchOrSkip(context.queryClient, statsOptions),
 		]);
 
 		return {
 			...res,
 			snapshots: context.queryClient.getQueryData(snapshotOptions.queryKey),
-			backupSchedules: context.queryClient.getQueryData(schedulesOptions.queryKey),
+			backupSchedules: schedules,
 			stats: context.queryClient.getQueryData(statsOptions.queryKey),
 		};
 	},
