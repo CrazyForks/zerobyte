@@ -18,6 +18,7 @@ import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
+import { validateCustomResticParams } from "../helpers/validate-custom-params";
 
 export const backup = async (
 	config: RepositoryConfig,
@@ -87,6 +88,10 @@ export const backup = async (
 	}
 
 	if (options.customResticParams && options.customResticParams.length > 0) {
+		const validationError = validateCustomResticParams(options.customResticParams);
+		if (validationError) {
+			throw new Error(`Invalid customResticParams: ${validationError}`);
+		}
 		for (const param of options.customResticParams) {
 			const tokens = param.trim().split(/\s+/).filter(Boolean);
 			args.push(...tokens);

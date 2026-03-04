@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { Form } from "~/client/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/client/components/ui/collapsible";
 import type { BackupSchedule, Volume } from "~/client/lib/types";
 import { AdvancedSection } from "./advanced-section";
 import { BasicInfoSection } from "./basic-info-section";
@@ -175,15 +176,14 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 						</CardContent>
 					</Card>
 
-					<Card className="min-w-0">
-						<CardHeader>
-							<CardTitle>Advanced</CardTitle>
-							<CardDescription>
-								Pass additional flags directly to the restic backup command. Use with caution.
-							</CardDescription>
-						</CardHeader>
+					<Card className="min-w-0 @container">
 						<CardContent>
-							<AdvancedSection form={form} />
+							<Collapsible>
+								<CollapsibleTrigger>Advanced</CollapsibleTrigger>
+								<CollapsibleContent className="pb-4 space-y-4">
+									<AdvancedSection form={form} />
+								</CollapsibleContent>
+							</Collapsible>
 						</CardContent>
 					</Card>
 				</div>

@@ -10,6 +10,7 @@ import { generateShortId } from "~/server/utils/id";
 import { getOrganizationId } from "~/server/core/request-context";
 import { calculateNextRun } from "./backup.helpers";
 import { asShortId, type ShortId } from "~/server/utils/branded";
+import { validateCustomResticParams } from "~/server/utils/restic/helpers/validate-custom-params";
 
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
@@ -119,6 +120,11 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 		throw new NotFoundError("Repository not found");
 	}
 
+	if (data.customResticParams && data.customResticParams.length > 0) {
+		const paramError = validateCustomResticParams(data.customResticParams);
+		if (paramError) throw new BadRequestError(paramError);
+	}
+
 	const nextBackupAt = calculateNextRun(data.cronExpression);
 
 	const [newSchedule] = await db
@@ -165,6 +171,11 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 
 	if (data.cronExpression && !cron.validate(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
+	}
+
+	if (data.customResticParams && data.customResticParams.length > 0) {
+		const paramError = validateCustomResticParams(data.customResticParams);
+		if (paramError) throw new BadRequestError(paramError);
 	}
 
 	if (data.name) {

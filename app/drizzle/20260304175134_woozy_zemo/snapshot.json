@@ -1,8 +1,8 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "38a5fef6-d38e-4bf0-b9ab-0723db3741da",
-	"prevIds": ["3a308c54-d950-464f-9490-fee06985fbeb"],
+	"id": "1e14036e-978e-400a-bff0-fe379595fcbd",
+	"prevIds": ["60a53b0c-395a-4960-9b48-1740388bd2dc"],
 	"ddl": [
 		{
 			"name": "account",
@@ -46,6 +46,10 @@
 		},
 		{
 			"name": "sessions_table",
+			"entityType": "tables"
+		},
+		{
+			"name": "sso_provider",
 			"entityType": "tables"
 		},
 		{
@@ -1162,6 +1166,116 @@
 			"generated": null,
 			"name": "id",
 			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "provider_id",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "organization_id",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "user_id",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "issuer",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "domain",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "false",
+			"generated": null,
+			"name": "auto_link_matching_emails",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "oidc_config",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "saml_config",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(unixepoch() * 1000)",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(unixepoch() * 1000)",
+			"generated": null,
+			"name": "updated_at",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "id",
+			"entityType": "columns",
 			"table": "two_factor"
 		},
 		{
@@ -1700,6 +1814,28 @@
 			"table": "sessions_table"
 		},
 		{
+			"columns": ["organization_id"],
+			"tableTo": "organization",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_sso_provider_organization_id_organization_id_fk",
+			"entityType": "fks",
+			"table": "sso_provider"
+		},
+		{
+			"columns": ["user_id"],
+			"tableTo": "users_table",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "SET NULL",
+			"nameExplicit": false,
+			"name": "fk_sso_provider_user_id_users_table_id_fk",
+			"entityType": "fks",
+			"table": "sso_provider"
+		},
+		{
 			"columns": ["user_id"],
 			"tableTo": "users_table",
 			"columnsTo": ["id"],
@@ -1796,6 +1932,13 @@
 			"nameExplicit": false,
 			"name": "sessions_table_pk",
 			"table": "sessions_table",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "sso_provider_pk",
+			"table": "sso_provider",
 			"entityType": "pks"
 		},
 		{
@@ -2018,6 +2161,13 @@
 			"name": "sessions_table_token_unique",
 			"entityType": "uniques",
 			"table": "sessions_table"
+		},
+		{
+			"columns": ["provider_id"],
+			"nameExplicit": false,
+			"name": "sso_provider_provider_id_unique",
+			"entityType": "uniques",
+			"table": "sso_provider"
 		},
 		{
 			"columns": ["username"],

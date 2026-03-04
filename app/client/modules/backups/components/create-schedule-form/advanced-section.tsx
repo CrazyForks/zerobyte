@@ -18,7 +18,7 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 					<FormControl>
 						<Textarea
 							{...field}
-							placeholder="--iexclude-larger-than 500M&#10;--no-scan&#10;--read-concurrency 8"
+							placeholder="--exclude-larger-than 500M&#10;--no-scan&#10;--read-concurrency 8"
 							className="font-mono text-sm min-h-24"
 						/>
 					</FormControl>

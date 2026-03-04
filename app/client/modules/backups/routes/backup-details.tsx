@@ -192,6 +192,7 @@ export function ScheduleDetailsPage(props: Props) {
 		updateSchedule.mutate({
 			path: { shortId: schedule.shortId },
 			body: {
+				name: schedule.name,
 				repositoryId: schedule.repositoryId,
 				enabled,
 				cronExpression: schedule.cronExpression,
@@ -200,6 +201,7 @@ export function ScheduleDetailsPage(props: Props) {
 				excludePatterns: schedule.excludePatterns || [],
 				excludeIfPresent: schedule.excludeIfPresent || [],
 				oneFileSystem: schedule.oneFileSystem,
+				customResticParams: schedule.customResticParams || [],
 			},
 		});
 	};

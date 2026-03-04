@@ -1,1 +1,0 @@
-ALTER TABLE `backup_schedules_table` ADD `custom_restic_params` text DEFAULT '[]';
