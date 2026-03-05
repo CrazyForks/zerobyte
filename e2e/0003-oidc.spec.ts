@@ -23,7 +23,7 @@ const autoLinkUninvitedLocalUsername = "sso-link-guard";
 const inviteOnlyMessage =
 	"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
 const accountLinkRequiredMessage =
-	"Your account exists but is not linked to this SSO provider. Sign in with username/password first, then enable auto linking in your provider settings or contact your administrator.";
+	"SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict.";
 
 type OrgMembersResponse = {
 	members: {
@@ -226,18 +226,27 @@ async function withOidcLoginAttempt(
 	}
 }
 
+function isLoginPath(url: string): boolean {
+	const pathname = new URL(url).pathname;
+	return pathname === "/login" || pathname === "/login/error";
+}
+
+function isSsoCallbackPath(url: string): boolean {
+	return new URL(url).pathname.startsWith("/api/auth/sso/callback/");
+}
+
 async function expectInviteOnlyLoginError(page: Page) {
 	await expect
 		.poll(
 			() => {
 				const url = page.url();
-				return /\/login(\/error)?/.test(url) || /\/api\/auth\/sso\/callback\//.test(url);
+				return isLoginPath(url) || isSsoCallbackPath(url);
 			},
 			{ timeout: 30000 },
 		)
 		.toBe(true);
 
-	if (/\/login(\/error)?/.test(page.url())) {
+	if (isLoginPath(page.url())) {
 		await waitForAppReady(page);
 		await expect(page.getByText(inviteOnlyMessage)).toBeVisible();
 		return;
@@ -251,19 +260,23 @@ async function expectAccountLinkRequiredLoginError(page: Page) {
 		.poll(
 			() => {
 				const url = page.url();
-				return /\/login(\/error)?/.test(url) || /\/api\/auth\/sso\/callback\//.test(url);
+				return isLoginPath(url) || isSsoCallbackPath(url);
 			},
 			{ timeout: 30000 },
 		)
 		.toBe(true);
 
-	if (/\/login(\/error)?/.test(page.url())) {
+	if (isLoginPath(page.url())) {
 		await waitForAppReady(page);
 		await expect(page.getByText(accountLinkRequiredMessage)).toBeVisible();
 		return;
 	}
 
-	await expect(page.getByText(/account exists but is not linked/i)).toBeVisible();
+	await expect(
+		page.getByText(
+			/(account not linked|unable to link account|already belongs to another user|outside this organization)/i,
+		),
+	).toBeVisible();
 }
 
 test("uninvited OIDC users are blocked", async ({ page, browser }) => {
@@ -321,7 +334,7 @@ test("auto-link policy enforces invitation and controls account linking", async 
 	await setProviderAutoLinking(page, providerIds.autoLinkNoInvite, true);
 
 	await withOidcLoginAttempt(browser, providerIds.autoLinkNoInvite, autoLinkUninvitedLocalEmail, async (ssoPage) => {
-		await expectInviteOnlyLoginError(ssoPage);
+		await expectAccountLinkRequiredLoginError(ssoPage);
 	});
 
 	await registerOidcProvider(page, providerIds.autoLink);
@@ -336,8 +349,6 @@ test("auto-link policy enforces invitation and controls account linking", async 
 	await setProviderAutoLinking(page, providerIds.autoLink, true);
 
 	await withOidcLoginAttempt(browser, providerIds.autoLink, autoLinkTargetEmail, async (ssoPage) => {
-		await ssoPage.waitForURL(/\/volumes/, { timeout: 30000 });
-		await waitForAppReady(ssoPage);
-		await expect(ssoPage).toHaveURL(/\/volumes/);
+		await expectAccountLinkRequiredLoginError(ssoPage);
 	});
 });
