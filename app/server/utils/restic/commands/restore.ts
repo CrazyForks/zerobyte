@@ -100,6 +100,10 @@ export const restore = async (
 		if (options.onProgress) {
 			try {
 				const jsonData = JSON.parse(data);
+				if (jsonData.message_type !== "status") {
+					return;
+				}
+
 				const progress = restoreProgressSchema.safeParse(jsonData);
 				if (progress.success) {
 					options.onProgress(progress.data);

@@ -107,6 +107,10 @@ export const backup = async (
 		if (options.onProgress) {
 			try {
 				const jsonData = JSON.parse(data);
+				if (jsonData.message_type !== "status") {
+					return;
+				}
+
 				const progressResult = resticBackupProgressSchema.safeParse(jsonData);
 				if (progressResult.success) {
 					options.onProgress(progressResult.data);

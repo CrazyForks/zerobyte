@@ -204,8 +204,8 @@ export type GetPublicSsoProvidersResponses = {
      */
     200: {
         providers: Array<{
-            organizationSlug: string;
             providerId: string;
+            organizationSlug: string;
         }>;
     };
 };
@@ -224,20 +224,20 @@ export type GetSsoSettingsResponses = {
      * SSO settings for the active organization
      */
     200: {
-        invitations: Array<{
-            email: string;
-            expiresAt: string;
-            id: string;
-            role: string;
-            status: string;
-        }>;
         providers: Array<{
-            autoLinkMatchingEmails: boolean;
-            domain: string;
-            issuer: string;
-            organizationId: string | null;
             providerId: string;
             type: string;
+            issuer: string;
+            domain: string;
+            autoLinkMatchingEmails: boolean;
+            organizationId: string | null;
+        }>;
+        invitations: Array<{
+            id: string;
+            email: string;
+            role: string;
+            status: string;
+            expiresAt: string;
         }>;
     };
 };
@@ -2186,7 +2186,7 @@ export type ListSnapshotFilesResponses = {
             id: string;
             short_id: string;
             time: string;
-            hostname: string;
+            hostname?: string;
             paths: Array<string>;
         };
         files: Array<{
@@ -4140,6 +4140,7 @@ export type GetBackupProgressResponses = {
         volumeName: string;
         repositoryName: string;
         seconds_elapsed: number;
+        seconds_remaining?: number;
         percent_done: number;
         total_files: number;
         files_done: number;
