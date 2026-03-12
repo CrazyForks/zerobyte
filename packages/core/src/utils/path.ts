@@ -32,6 +32,10 @@ export const normalizeAbsolutePath = (value?: string): string => {
 		return "/";
 	}
 
+	if (normalized.length > 1000) {
+		throw new Error("Normalized path is too long");
+	}
+
 	const withoutTrailingSlash = normalized.replace(/\/+$/, "");
 	if (!withoutTrailingSlash) {
 		return "/";

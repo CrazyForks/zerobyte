@@ -30,13 +30,13 @@ export const resticBackupOutputSchema = resticBackupRunSummarySchema.extend({
 });
 
 export const resticBackupProgressMetricsSchema = z.object({
-	seconds_elapsed: z.number(),
+	seconds_elapsed: z.number().default(0),
 	seconds_remaining: z.number().default(0),
 	percent_done: z.number(),
 	total_files: z.number(),
-	files_done: z.number(),
+	files_done: z.number().default(0),
 	total_bytes: z.number(),
-	bytes_done: z.number(),
+	bytes_done: z.number().default(0),
 	current_files: z.array(z.string()).default([]),
 });
 
@@ -48,7 +48,7 @@ export const resticRestoreOutputSchema = z.object({
 	message_type: z.literal("summary"),
 	total_files: z.number().optional(),
 	files_restored: z.number(),
-	files_skipped: z.number(),
+	files_skipped: z.number().default(0),
 	total_bytes: z.number().optional(),
 	bytes_restored: z.number().optional(),
 	bytes_skipped: z.number().optional(),
