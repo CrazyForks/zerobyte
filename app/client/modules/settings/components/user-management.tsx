@@ -139,93 +139,99 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 								No users found.
 							</TableCell>
 						</TableRow>
-						{filteredUsers.map((user) => (
-							<TableRow key={user.id}>
-								<TableCell>
-									<div className="flex flex-col">
-										<span className="font-medium">{user.name ?? user.email}</span>
-										<span className="text-sm text-muted-foreground">{user.email}</span>
-									</div>
-								</TableCell>
-								<TableCell>
-									<Badge>{user.role}</Badge>
-								</TableCell>
-								<TableCell>
-									<Badge variant="outline" className={cn("text-red-500 border-red-500", { hidden: !user.banned })}>
-										Banned
-									</Badge>
-									<Badge variant="outline" className={cn("bg-success/10 text-success", { hidden: user.banned })}>
-										Active
-									</Badge>
-								</TableCell>
-								<TableCell className="text-right">
-									<div className={cn("flex justify-end gap-2")}>
-										<Button
-											variant="ghost"
-											size="icon"
-											title="Demote to User"
-											className={cn({ hidden: user.role !== "admin" || user.id === currentUser?.id })}
-											onClick={() => setRoleMutation.mutate({ userId: user.id, role: "user" })}
-										>
-											<ShieldAlert className="h-4 w-4" />
-										</Button>
-										<Button
-											variant="ghost"
-											size="icon"
-											title="Promote to Admin"
-											className={cn({ hidden: user.role === "admin" || user.id === currentUser?.id })}
-											onClick={() => setRoleMutation.mutate({ userId: user.id, role: "admin" })}
-										>
-											<Shield className="h-4 w-4" />
-										</Button>
+						{filteredUsers.map((user) => {
+							const displayName = user.name ?? user.email;
+							const isCurrentUser = user.id === currentUser?.id;
+							const isBanned = Boolean(user.banned);
 
-										<Button
-											variant="ghost"
-											size="icon"
-											title="Unban user"
-											className={cn({ hidden: !user.banned || user.id === currentUser?.id })}
-											onClick={() => setUserToBan({ id: user.id, name: user.name ?? user.email, isBanned: true })}
-										>
-											<UserCheck className="h-4 w-4" />
-										</Button>
-										<Button
-											variant="ghost"
-											size="icon"
-											title="Ban user"
-											className={cn({ hidden: !!user.banned || user.id === currentUser?.id })}
-											onClick={() => setUserToBan({ id: user.id, name: user.name ?? user.email, isBanned: false })}
-										>
-											<Ban className="h-4 w-4" />
-										</Button>
+							return (
+								<TableRow key={user.id}>
+									<TableCell>
+										<div className="flex flex-col">
+											<span className="font-medium">{displayName}</span>
+											<span className="text-sm text-muted-foreground">{user.email}</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										<Badge>{user.role}</Badge>
+									</TableCell>
+									<TableCell>
+										<Badge variant="outline" className={cn("text-red-500 border-red-500", { hidden: !isBanned })}>
+											Banned
+										</Badge>
+										<Badge variant="outline" className={cn("bg-success/10 text-success", { hidden: isBanned })}>
+											Active
+										</Badge>
+									</TableCell>
+									<TableCell className="text-right">
+										<div className={cn("flex justify-end gap-2")}>
+											<Button
+												variant="ghost"
+												size="icon"
+												title="Demote to User"
+												className={cn({ hidden: user.role !== "admin" || isCurrentUser })}
+												onClick={() => setRoleMutation.mutate({ userId: user.id, role: "user" })}
+											>
+												<ShieldAlert className="h-4 w-4" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												title="Promote to Admin"
+												className={cn({ hidden: user.role === "admin" || isCurrentUser })}
+												onClick={() => setRoleMutation.mutate({ userId: user.id, role: "admin" })}
+											>
+												<Shield className="h-4 w-4" />
+											</Button>
 
-										<Button
-											variant="ghost"
-											size="icon"
-											title="Delete User"
-											className={cn({ hidden: user.id === currentUser?.id })}
-											onClick={() => setUserToDelete(user.id)}
-										>
-											<Trash2 className="h-4 w-4 text-destructive" />
-										</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												title="Unban user"
+												className={cn({ hidden: !isBanned || isCurrentUser })}
+												onClick={() => setUserToBan({ id: user.id, name: displayName, isBanned: true })}
+											>
+												<UserCheck className="h-4 w-4" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												title="Ban user"
+												className={cn({ hidden: isBanned || isCurrentUser })}
+												onClick={() => setUserToBan({ id: user.id, name: displayName, isBanned: false })}
+											>
+												<Ban className="h-4 w-4" />
+											</Button>
 
-										<Button
-											variant="ghost"
-											size="icon"
-											title="Manage Accounts"
-											onClick={() =>
-												setUserToManageAccounts({
-													id: user.id,
-													name: user.name ?? user.email,
-													accounts: user.accounts,
-												})
-											}
-										>
-											<KeyRound className="h-4 w-4" />
-										</Button>
-									</div>
-								</TableCell>
-							</TableRow>
-						))}
+											<Button
+												variant="ghost"
+												size="icon"
+												title="Delete User"
+												className={cn({ hidden: isCurrentUser })}
+												onClick={() => setUserToDelete(user.id)}
+											>
+												<Trash2 className="h-4 w-4 text-destructive" />
+											</Button>
+
+											<Button
+												variant="ghost"
+												size="icon"
+												title="Manage Accounts"
+												onClick={() =>
+													setUserToManageAccounts({
+														id: user.id,
+														name: displayName,
+														accounts: user.accounts,
+													})
+												}
+											>
+												<KeyRound className="h-4 w-4" />
+											</Button>
+										</div>
+									</TableCell>
+								</TableRow>
+							);
+						})}
 					</TableBody>
 				</Table>
 			</div>
