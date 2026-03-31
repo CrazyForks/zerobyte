@@ -134,6 +134,33 @@ describe("SnapshotTreeBrowser", () => {
 		expect(selectedKind === "dir").toBe(true);
 	});
 
+	test("keeps full paths when the display root does not contain the query root", async () => {
+		mockListSnapshotFiles();
+
+		let selectedPaths: Set<string> | undefined;
+		let selectedKind: "file" | "dir" | null = null;
+
+		renderSnapshotTreeBrowser({
+			queryBasePath: "/mnt/project",
+			displayBasePath: "/other/root",
+			withCheckboxes: true,
+			onSelectionChange: (paths) => {
+				selectedPaths = paths;
+			},
+			onSingleSelectionKindChange: (kind) => {
+				selectedKind = kind;
+			},
+		});
+
+		const row = await screen.findByRole("button", { name: "mnt" });
+		const checkbox = within(row).getByRole("checkbox");
+
+		await userEvent.click(checkbox);
+
+		expect(selectedPaths ? Array.from(selectedPaths) : []).toEqual(["/mnt"]);
+		expect(selectedKind === "dir").toBe(true);
+	});
+
 	test("shows selected folder state when full paths are provided from the parent", async () => {
 		mockListSnapshotFiles();
 

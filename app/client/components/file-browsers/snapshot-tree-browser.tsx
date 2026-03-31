@@ -4,7 +4,7 @@ import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-qu
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-import { normalizeAbsolutePath } from "@zerobyte/core/utils";
+import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { logger } from "~/client/lib/logger";
 
 function createPathPrefixFns(basePath: string) {
@@ -48,6 +48,9 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 	const queryClient = useQueryClient();
 	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
 	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
+	const effectiveDisplayBasePath = isPathWithin(normalizedDisplayBasePath, normalizedQueryBasePath)
+		? normalizedDisplayBasePath
+		: "/";
 
 	const { data, isLoading, error } = useQuery({
 		...listSnapshotFilesOptions({
@@ -57,7 +60,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		enabled,
 	});
 
-	const displayPathFns = useMemo(() => createPathPrefixFns(normalizedDisplayBasePath), [normalizedDisplayBasePath]);
+	const displayPathFns = useMemo(() => createPathPrefixFns(effectiveDisplayBasePath), [effectiveDisplayBasePath]);
 
 	const displaySelectedPaths = useMemo(() => {
 		if (!selectedPaths) return undefined;
