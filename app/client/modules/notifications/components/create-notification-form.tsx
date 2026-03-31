@@ -176,7 +176,7 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 										});
 									}
 								}}
-								value={field.value}
+								value={field.value ?? ""}
 								disabled={mode === "update"}
 							>
 								<FormControl>

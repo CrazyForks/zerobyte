@@ -19,7 +19,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 export function CreateBackupPage() {
 	const navigate = useNavigate();
 	const formId = useId();
-	const [selectedVolumeShortId, setSelectedVolumeShortId] = useState<string | undefined>();
+	const [selectedVolumeShortId, setSelectedVolumeShortId] = useState("");
 
 	const { data: volumesData } = useSuspenseQuery({
 		...listVolumesOptions(),

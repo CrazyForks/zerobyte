@@ -74,7 +74,7 @@ export const GenericForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Method</FormLabel>
-						<Select onValueChange={field.onChange} value={field.value}>
+						<Select onValueChange={field.onChange} value={field.value ?? ""}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select method" />

@@ -22,7 +22,7 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 					<FormItem>
 						<FormLabel>Backup frequency</FormLabel>
 						<FormControl>
-							<Select {...field} onValueChange={field.onChange}>
+							<Select {...field} onValueChange={field.onChange} value={field.value ?? ""}>
 								<SelectTrigger>
 									<SelectValue placeholder="Select frequency" />
 								</SelectTrigger>
@@ -77,7 +77,7 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 						<FormItem className="@medium:col-span-2">
 							<FormLabel>Execution day</FormLabel>
 							<FormControl>
-								<Select {...field} onValueChange={field.onChange}>
+								<Select {...field} onValueChange={field.onChange} value={field.value ?? ""}>
 									<SelectTrigger>
 										<SelectValue placeholder="Select a day" />
 									</SelectTrigger>

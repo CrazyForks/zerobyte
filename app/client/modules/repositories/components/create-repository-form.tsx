@@ -173,7 +173,7 @@ export const CreateRepositoryForm = ({
 										],
 									});
 								}}
-								value={field.value}
+								value={field.value ?? ""}
 								disabled={mode === "update"}
 							>
 								<FormControl>
@@ -213,7 +213,7 @@ export const CreateRepositoryForm = ({
 					render={({ field }) => (
 						<FormItem>
 							<FormLabel>Compression Mode</FormLabel>
-							<Select onValueChange={field.onChange} value={field.value}>
+							<Select onValueChange={field.onChange} value={field.value ?? ""}>
 								<FormControl>
 									<SelectTrigger>
 										<SelectValue placeholder="Select compression mode" />

@@ -42,7 +42,7 @@ export const BasicInfoSection = ({ form, volume }: BasicInfoSectionProps) => {
 					<FormItem className="@medium:col-span-2">
 						<FormLabel>Backup repository</FormLabel>
 						<FormControl>
-							<Select {...field} onValueChange={field.onChange}>
+							<Select {...field} onValueChange={field.onChange} value={field.value ?? ""}>
 								<SelectTrigger>
 									<SelectValue placeholder="Select a repository" />
 								</SelectTrigger>

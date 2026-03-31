@@ -5,35 +5,19 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { cn } from "~/client/lib/utils";
 
 const SelectSsrValueContext = React.createContext<{
-	items: Map<string, string>;
+	hydrated: boolean;
+	items: Map<string, React.ReactNode>;
 	value: string | undefined;
 } | null>(null);
 
-function getSelectItemText(children: React.ReactNode): string {
-	return React.Children.toArray(children)
-		.map((child) => {
-			if (typeof child === "string" || typeof child === "number") {
-				return String(child);
-			}
-
-			if (!React.isValidElement<{ children?: React.ReactNode }>(child)) {
-				return "";
-			}
-
-			return getSelectItemText(child.props.children);
-		})
-		.join("")
-		.trim();
-}
-
-function collectSelectItems(children: React.ReactNode, items = new Map<string, string>()) {
+function collectSelectItems(children: React.ReactNode, items = new Map<string, React.ReactNode>()) {
 	for (const child of React.Children.toArray(children)) {
 		if (!React.isValidElement<{ children?: React.ReactNode; value?: string }>(child)) {
 			continue;
 		}
 
 		if ((child.type === SelectItem || child.type === SelectPrimitive.Item) && typeof child.props.value === "string") {
-			items.set(child.props.value, getSelectItemText(child.props.children));
+			items.set(child.props.value, child.props.children);
 		}
 
 		if (child.props.children) {
@@ -45,10 +29,15 @@ function collectSelectItems(children: React.ReactNode, items = new Map<string, s
 }
 
 function Select({ children, value, ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
+	const [hydrated, setHydrated] = React.useState(false);
 	const items = collectSelectItems(children);
 
+	React.useEffect(() => {
+		setHydrated(true);
+	}, []);
+
 	return (
-		<SelectSsrValueContext.Provider value={{ items, value }}>
+		<SelectSsrValueContext.Provider value={{ hydrated, items, value }}>
 			<SelectPrimitive.Root data-slot="select" value={value} {...props}>
 				{children}
 			</SelectPrimitive.Root>
@@ -60,13 +49,22 @@ function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.G
 	return <SelectPrimitive.Group data-slot="select-group" {...props} />;
 }
 
-function SelectValue({ children, ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
+function SelectValue({ children, placeholder, style, ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
 	const context = React.useContext(SelectSsrValueContext);
-	const resolvedChildren = children ?? (context?.value ? context.items.get(context.value) : undefined);
+	const selectedItem =
+		context?.value !== undefined && context.value !== "" ? context.items.get(context.value) : undefined;
+
+	if (!context?.hydrated) {
+		return (
+			<span data-slot="select-value" {...props} style={{ pointerEvents: "none", ...style }}>
+				{children ?? selectedItem ?? placeholder}
+			</span>
+		);
+	}
 
 	return (
-		<SelectPrimitive.Value data-slot="select-value" {...props}>
-			{resolvedChildren}
+		<SelectPrimitive.Value data-slot="select-value" placeholder={placeholder} style={style} {...props}>
+			{children}
 		</SelectPrimitive.Value>
 	);
 }
@@ -76,19 +74,35 @@ function SelectTrigger({
 	size = "default",
 	children,
 	...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+}: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & {
 	size?: "sm" | "default";
 }) {
+	const context = React.useContext(SelectSsrValueContext);
+	const hasValue = context?.value !== undefined && context.value !== "";
+	const triggerClassName = cn(
+		"border-input data-placeholder:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&+select[aria-hidden=true]]:hidden [&:has(+select[aria-hidden=true]:last-child)]:mb-0",
+		className,
+	);
+
+	if (!context?.hydrated) {
+		return (
+			<div
+				id={props.id}
+				aria-disabled="true"
+				aria-invalid={props["aria-invalid"]}
+				data-placeholder={hasValue ? undefined : ""}
+				data-size={size}
+				data-slot="select-trigger"
+				className={triggerClassName}
+			>
+				{children}
+				<ChevronDownIcon className="size-4 opacity-50" />
+			</div>
+		);
+	}
+
 	return (
-		<SelectPrimitive.Trigger
-			data-slot="select-trigger"
-			data-size={size}
-			className={cn(
-				"border-input data-placeholder:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&+select[aria-hidden=true]]:hidden [&:has(+select[aria-hidden=true]:last-child)]:mb-0",
-				className,
-			)}
-			{...props}
-		>
+		<SelectPrimitive.Trigger data-slot="select-trigger" data-size={size} className={triggerClassName} {...props}>
 			{children}
 			<SelectPrimitive.Icon asChild>
 				<ChevronDownIcon className="size-4 opacity-50" />
