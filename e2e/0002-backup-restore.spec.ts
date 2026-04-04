@@ -360,13 +360,15 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 	await expect(volumeLink).toBeVisible();
 	await volumeLink.click();
 	await expect(page).toHaveURL(/\/volumes\/[^/?#]+/);
-	await expect(page.getByText("Volume Configuration", { exact: true })).toBeVisible();
-	await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "Actions" })).toBeVisible();
+	const deleteVolumeMenuItem = page.getByRole("menuitem", { name: "Delete" });
 
 	await expect(async () => {
-		await page.getByRole("button", { name: "Delete" }).click();
-		await expect(page.getByRole("heading", { name: "Delete volume?" })).toBeVisible();
+		await page.getByRole("button", { name: "Actions" }).click();
+		await expect(deleteVolumeMenuItem).toBeVisible();
 	}).toPass({ timeout: 10000 });
+	await deleteVolumeMenuItem.click({ force: true });
+	await expect(page.getByRole("heading", { name: "Delete volume?" })).toBeVisible();
 	await expect(page.getByText("All backup schedules associated with this volume will also be removed.")).toBeVisible();
 	await page.getByRole("button", { name: "Delete volume" }).click();
 	await expect(page.getByText("Volume deleted successfully")).toBeVisible();

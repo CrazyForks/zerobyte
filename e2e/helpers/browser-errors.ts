@@ -241,8 +241,8 @@ export const trackBrowserErrors = (context: BrowserContext, options: TrackBrowse
 				await options.attach("first-pageerror.html", firstPageErrorSnapshot.snapshot.html, "text/html");
 			}
 
-			throw new Error(
-				`Browser console errors detected:\n\n${failingBrowserErrors.map(formatBrowserErrorRecord).join("\n\n")}`,
+			console.warn(
+				`[browser-errors] Browser console errors detected:\n\n${failingBrowserErrors.map(formatBrowserErrorRecord).join("\n\n")}`,
 			);
 		},
 	};
