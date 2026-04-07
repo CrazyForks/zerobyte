@@ -31,6 +31,8 @@ const backupScheduleSchema = z.object({
 	includePatterns: z.array(z.string()).nullable(),
 	oneFileSystem: z.boolean(),
 	customResticParams: z.array(z.string()).nullable(),
+	maxRetries: z.number(),
+	retryDelay: z.number(),
 	lastBackupAt: z.number().nullable(),
 	lastBackupStatus: z.enum(["success", "error", "in_progress", "warning"]).nullable(),
 	lastBackupError: z.string().nullable(),
