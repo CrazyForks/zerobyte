@@ -240,13 +240,13 @@ export async function handleBackupFailure(
 		const delayMinutes = Math.round((schedule.retryDelay / (60 * 1000)) * 10) / 10;
 
 		logger.warn(
-			`Backup ${schedule?.name} failed. Scheduling retry ${currentRetryCount + 1}/${maxRetries} for ${delayMinutes} minutes from now: ${errorMessage}`,
+			`Backup ${schedule.name} failed. Scheduling retry ${currentRetryCount + 1}/${maxRetries} for ${delayMinutes} minutes from now: ${errorMessage}`,
 		);
 
 		if (partialContext?.volume && partialContext?.repository) {
 			serverEvents.emit("backup:completed", {
 				organizationId,
-				scheduleId: schedule!.shortId,
+				scheduleId: schedule.shortId,
 				volumeName: partialContext.volume.name,
 				repositoryName: partialContext.repository.name,
 				status: "error",
@@ -256,7 +256,7 @@ export async function handleBackupFailure(
 				.sendBackupNotification(scheduleId, "failure", {
 					volumeName: partialContext.volume.name,
 					repositoryName: partialContext.repository.name,
-					scheduleName: schedule!.name,
+					scheduleName: schedule.name,
 					error: `${errorDetails}\n\nRetrying in ${delayMinutes} minutes (attempt ${currentRetryCount + 1}/${maxRetries})`,
 				})
 				.catch((notifError) => {
@@ -270,7 +270,7 @@ export async function handleBackupFailure(
 	const { volume, repository } = partialContext;
 
 	logger.error(
-		`Backup ${schedule?.name} failed after ${maxRetries} retries for volume ${volume.name} to repository ${repository.name}: ${errorMessage}`,
+		`Backup ${schedule.name} failed after ${maxRetries} retries for volume ${volume.name} to repository ${repository.name}: ${errorMessage}`,
 	);
 
 	serverEvents.emit("backup:completed", {
