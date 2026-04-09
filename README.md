@@ -15,6 +15,10 @@
   </figure>
 </div>
 
+#### Join the community
+
+[![Discord](https://img.shields.io/discord/1466834119873925263?label=discord&logo=discord)](https://discord.gg/MzBXz5v5XB)
+
 > [!WARNING]
 > Zerobyte is still in version 0.x.x and is subject to major changes from version to version. I am developing the core features and collecting feedbacks. Expect bugs! Please open issues or feature requests
 
@@ -40,7 +44,7 @@ In order to run Zerobyte, you need to have Docker and Docker Compose installed o
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.32
+    image: ghcr.io/nicotsx/zerobyte:v0.33
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -121,7 +125,7 @@ If you only need to back up locally mounted folders and don't require remote sha
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.32
+    image: ghcr.io/nicotsx/zerobyte:v0.33
     container_name: zerobyte
     restart: unless-stopped
     ports:
@@ -160,7 +164,7 @@ If you want to track a local directory on the same server where Zerobyte is runn
 ```diff
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.32
+    image: ghcr.io/nicotsx/zerobyte:v0.33
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -235,7 +239,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    ```diff
    services:
      zerobyte:
-       image: ghcr.io/nicotsx/zerobyte:v0.32
+       image: ghcr.io/nicotsx/zerobyte:v0.33
        container_name: zerobyte
        restart: unless-stopped
        cap_add:
