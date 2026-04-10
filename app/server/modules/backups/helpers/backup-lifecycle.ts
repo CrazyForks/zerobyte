@@ -267,6 +267,10 @@ export async function handleBackupFailure(
 		return;
 	}
 
+	await scheduleQueries.updateStatus(scheduleId, organizationId, {
+		failureRetryCount: 0,
+	});
+
 	const { volume, repository } = partialContext;
 
 	logger.error(
