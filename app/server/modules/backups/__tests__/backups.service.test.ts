@@ -293,6 +293,8 @@ describe("manual only schedules", () => {
 			repositoryId: repository.shortId,
 			enabled: false,
 			cronExpression: "",
+			retryDelay: 0,
+			maxRetries: 0,
 		});
 
 		expect(schedule.cronExpression).toBe("");
@@ -312,6 +314,8 @@ describe("manual only schedules", () => {
 				repositoryId: repository.shortId,
 				enabled: true,
 				cronExpression: "",
+				retryDelay: 0,
+				maxRetries: 0,
 			}),
 		).rejects.toThrow("Enabled schedules require a cron expression");
 	});
@@ -332,6 +336,8 @@ describe("manual only schedules", () => {
 			repositoryId: repository.shortId,
 			enabled: false,
 			cronExpression: "",
+			retryDelay: 0,
+			maxRetries: 0,
 		});
 
 		expect(updatedSchedule.cronExpression).toBe("");
@@ -356,6 +362,8 @@ describe("manual only schedules", () => {
 				repositoryId: repository.shortId,
 				enabled: true,
 				cronExpression: "",
+				retryDelay: 0,
+				maxRetries: 0,
 			}),
 		).rejects.toThrow("Enabled schedules require a cron expression");
 	});
