@@ -235,16 +235,13 @@ export async function handleBackupFailure(
 
 	if (!manual && shouldRetry && nextRetryBackupAt < nextScheduledBackupAt) {
 		await scheduleQueries.updateStatus(scheduleId, organizationId, {
-			lastBackupAt: Date.now(),
-			lastBackupStatus: "error",
-			lastBackupError: errorDetails,
 			nextBackupAt: nextRetryBackupAt,
 			failureRetryCount: currentRetryCount + 1,
 		});
 
 		const delayMinutes = Math.round((schedule.retryDelay / (60 * 1000)) * 10) / 10;
 
-		logger.warn(
+		logger.error(
 			`Backup ${schedule.name} failed. Scheduling retry ${currentRetryCount + 1}/${maxRetries} for ${delayMinutes} minutes from now: ${errorMessage}`,
 		);
 
@@ -322,5 +319,6 @@ export async function handleBackupCancellation(
 		lastBackupAt: shouldSetLastBackupAt ? Date.now() : undefined,
 		lastBackupStatus: "warning",
 		lastBackupError: message ?? "Backup was stopped by the user",
+		failureRetryCount: 0,
 	});
 }
