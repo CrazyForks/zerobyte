@@ -42,7 +42,7 @@ export default defineConfig({
 		printWidth: 120,
 		useTabs: true,
 		endOfLine: "lf",
-		ignorePatterns: ["*.gen.ts"],
+		ignorePatterns: ["*.gen.ts", "**/.source"],
 	},
 	lint: {
 		plugins: ["eslint", "unicorn", "typescript", "oxc", "import", "react", "react-perf", "node", "jsx-a11y"],
@@ -67,7 +67,7 @@ export default defineConfig({
 		env: {
 			builtin: true,
 		},
-		ignorePatterns: ["**/api-client/**"],
+		ignorePatterns: ["**/api-client/**", "docs/**"],
 		overrides: [
 			{
 				files: ["**/*.test.ts", "**/*.test.tsx"],
