@@ -262,4 +262,41 @@ describe("volumeService.testConnection", () => {
 		expect(mount).toHaveBeenCalledOnce();
 		expect(unmount).toHaveBeenCalledOnce();
 	});
+
+	test("does not fail when backend unmount already removed the temp mount path", async () => {
+		const mount = vi.fn().mockResolvedValue({ status: "mounted" });
+		let mountPath: string | undefined;
+		const unmount = vi.fn().mockImplementation(async () => {
+			await fs.rm(mountPath!, { recursive: true, force: true });
+			return { status: "unmounted" };
+		});
+
+		vi.spyOn(backendModule, "createVolumeBackend").mockImplementation((_volume, tempPath) => {
+			mountPath = tempPath;
+			return {
+				mount,
+				unmount,
+				checkHealth: vi.fn(),
+			};
+		});
+
+		await expect(
+			volumeService.testConnection({
+				backend: "nfs",
+				server: "127.0.0.1",
+				exportPath: "/exports/test",
+				version: "4",
+				port: 2049,
+				readOnly: false,
+			}),
+		).resolves.toEqual({
+			success: true,
+			message: "Connection successful",
+		});
+
+		expect(mountPath).toEqual(expect.stringContaining(`${path.sep}zerobyte-test-`));
+		await expect(fs.access(mountPath as string)).rejects.toThrow();
+		expect(mount).toHaveBeenCalledOnce();
+		expect(unmount).toHaveBeenCalledOnce();
+	});
 });

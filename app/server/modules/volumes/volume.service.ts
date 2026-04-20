@@ -232,36 +232,37 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 
 const testConnection = async (backendConfig: BackendConfig) => {
 	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-test-"));
-	const encryptedConfig = await encryptVolumeConfig(backendConfig);
+	try {
+		const encryptedConfig = await encryptVolumeConfig(backendConfig);
 
-	const mockVolume = {
-		id: 0,
-		shortId: asShortId("test"),
-		name: "test-connection",
-		config: encryptedConfig,
-		createdAt: Date.now(),
-		updatedAt: Date.now(),
-		lastHealthCheck: Date.now(),
-		type: encryptedConfig.backend,
-		status: "unmounted" as const,
-		lastError: null,
-		provisioningId: null,
-		autoRemount: true,
-		organizationId: "test-org",
-	};
+		const mockVolume = {
+			id: 0,
+			shortId: asShortId("test"),
+			name: "test-connection",
+			config: encryptedConfig,
+			createdAt: Date.now(),
+			updatedAt: Date.now(),
+			lastHealthCheck: Date.now(),
+			type: encryptedConfig.backend,
+			status: "unmounted" as const,
+			lastError: null,
+			provisioningId: null,
+			autoRemount: true,
+			organizationId: "test-org",
+		};
 
-	const backend = createVolumeBackend(mockVolume, tempDir);
-	const { error } = await backend.mount();
+		const backend = createVolumeBackend(mockVolume, tempDir);
+		const { error } = await backend.mount();
 
-	await backend.unmount();
+		await backend.unmount();
 
-	await fs.access(tempDir);
-	await fs.rm(tempDir, { recursive: true, force: true });
-
-	return {
-		success: !error,
-		message: error ? toMessage(error) : "Connection successful",
-	};
+		return {
+			success: !error,
+			message: error ? toMessage(error) : "Connection successful",
+		};
+	} finally {
+		await fs.rm(tempDir, { recursive: true, force: true });
+	}
 };
 
 const checkHealth = async (shortId: ShortId) => {
