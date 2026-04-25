@@ -17,6 +17,7 @@ jobs:
     outputs:
       release_type: ${{ steps.set-type.outputs.release_type }}
       tagname: ${{ github.ref_name }}
+      is_minor_release: ${{ steps.set-type.outputs.is_minor_release }}
     steps:
       - name: Set release type
         id: set-type
@@ -28,6 +29,12 @@ jobs:
             echo "release_type=beta" >> $GITHUB_OUTPUT
           else
             echo "release_type=release" >> $GITHUB_OUTPUT
+          fi
+
+          if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
+            echo "is_minor_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_minor_release=false" >> $GITHUB_OUTPUT
           fi
 
   checks:
@@ -151,7 +158,7 @@ jobs:
   request-docs-version-update:
     uses: ./.github/workflows/request-docs-version-update.yml
     needs: [publish-release, determine-release-type]
-    if: needs.determine-release-type.outputs.release_type == 'release'
+    if: needs.determine-release-type.outputs.release_type == 'release' && needs.determine-release-type.outputs.is_minor_release == 'true'
     with:
       release_tag: ${{ needs.determine-release-type.outputs.tagname }}
       base_branch: ${{ github.event.repository.default_branch }}
