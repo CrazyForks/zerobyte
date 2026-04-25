@@ -48,7 +48,7 @@ jobs:
             const targetRepo = `${owner}/${repo}`;
             const releaseUrl = `https://github.com/${targetRepo}/releases/tag/${releaseTag}`;
             const title = `Update Docker Compose examples to ${releaseTag}`;
-            const body = [
+            const bodyLines = [
               `A new Zerobyte release was published: ${releaseTag}`,
               "",
               `Release: ${releaseUrl}`,
@@ -70,13 +70,32 @@ jobs:
               "",
               "- Search for stale `ghcr.io/nicotsx/zerobyte:v...` references in `README.md` and `apps/docs/`.",
               "- Run any formatting or documentation checks that are appropriate for the touched files.",
-            ].join("\n");
+            ];
 
-            await github.request("POST /repos/{owner}/{repo}/issues", {
+            const issue = await github.rest.issues.create({
               owner,
               repo,
               title,
-              body,
+              body: bodyLines.join("\n"),
+            });
+
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: issue.data.number,
+              body: [
+                ...bodyLines,
+                "",
+                "Pull request requirement:",
+                "",
+                `- Include \`Closes #${issue.data.number}\` in the pull request body.`,
+              ].join("\n"),
+            });
+
+            await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
+              owner,
+              repo,
+              issue_number: issue.data.number,
               assignees: ["copilot-swe-agent[bot]"],
               agent_assignment: {
                 target_repo: targetRepo,
