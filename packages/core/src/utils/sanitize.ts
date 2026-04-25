@@ -7,7 +7,7 @@ export const sanitizeSensitiveData = (text: string): string => {
 		return text;
 	}
 
-	let sanitized = text.replace(/\b(pass|password)=([^\s,]+)/gi, "$1=***");
+	let sanitized = text.replace(/\b(pass|password)=((?:\\.|[^\s,])*)/gi, "$1=***");
 
 	sanitized = sanitized.replace(/\/\/([^:@\s]+):([^@\s]+)@/g, "//$1:***@");
 

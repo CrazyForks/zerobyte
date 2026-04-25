@@ -65,7 +65,7 @@ const mount = async (config: BackendConfig, path: string) => {
 		const args = ["-t", "cifs", "-o", options.join(","), source, path];
 
 		logger.debug(`Mounting SMB volume ${path}...`);
-		logger.info(`Executing mount: mount ${args.join(" ")}`);
+		logger.info(`Executing SMB mount for ${source} at ${path}`);
 
 		try {
 			await executeMount(args);
