@@ -7,15 +7,72 @@ import {
 	type NotificationDestination,
 } from "../../db/schema";
 import { logger } from "@zerobyte/core/node";
+import { isAllowedWebhookUrl } from "@zerobyte/core/backup-hooks";
 import { sendNotification } from "../../utils/shoutrrr";
 import { formatDuration } from "~/utils/utils";
 import { buildShoutrrrUrl } from "./builders";
 import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
 import type { ResticBackupRunSummaryDto } from "@zerobyte/core/restic";
 import { toMessage } from "../../utils/errors";
+import { config } from "~/server/core/config";
 import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";
 import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
+
+const getCustomShoutrrrWebhookUrl = (shoutrrrUrl: string) => {
+	if (!URL.canParse(shoutrrrUrl)) {
+		return null;
+	}
+
+	const parsedUrl = new URL(shoutrrrUrl);
+	const protocol = parsedUrl.protocol.toLowerCase();
+
+	if (protocol === "generic:") {
+		const scheme = parsedUrl.searchParams.get("disabletls") === "yes" ? "http" : "https";
+		return `${scheme}://${parsedUrl.host}`;
+	}
+
+	if (protocol === "gotify:") {
+		const scheme = parsedUrl.searchParams.get("DisableTLS") === "true" ? "http" : "https";
+		return `${scheme}://${parsedUrl.host}`;
+	}
+
+	if (protocol === "ntfy:" && parsedUrl.hostname !== "ntfy.sh") {
+		const scheme = parsedUrl.searchParams.get("scheme") === "http" ? "http" : "https";
+		return `${scheme}://${parsedUrl.host}`;
+	}
+
+	return null;
+};
+
+const getNotificationWebhookUrl = (notificationConfig: NotificationConfig) => {
+	switch (notificationConfig.type) {
+		case "generic":
+			return notificationConfig.url;
+		case "gotify":
+			return notificationConfig.serverUrl;
+		case "ntfy":
+			return notificationConfig.serverUrl ?? null;
+		case "custom":
+			return getCustomShoutrrrWebhookUrl(notificationConfig.shoutrrrUrl);
+		default:
+			return null;
+	}
+};
+
+const assertNotificationWebhookOriginAllowed = (notificationConfig: NotificationConfig) => {
+	const webhookUrl = getNotificationWebhookUrl(notificationConfig);
+	if (!webhookUrl) {
+		return;
+	}
+
+	if (!isAllowedWebhookUrl(webhookUrl, config.webhookAllowedOrigins)) {
+		const webhookOrigin = URL.canParse(webhookUrl) ? new URL(webhookUrl).origin : webhookUrl;
+		throw new BadRequestError(
+			`Notification webhook URL origin is not allowed. Add ${webhookOrigin} to WEBHOOK_ALLOWED_ORIGINS.`,
+		);
+	}
+};
 
 const listDestinations = async () => {
 	const organizationId = getOrganizationId();
@@ -46,6 +103,8 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 	if (trimmedName.length === 0) {
 		throw new BadRequestError("Name cannot be empty");
 	}
+
+	assertNotificationWebhookOriginAllowed(config);
 
 	const encryptedConfig = await encryptNotificationConfig(config);
 
@@ -98,6 +157,7 @@ const updateDestination = async (
 		throw new BadRequestError("Invalid notification configuration");
 	}
 	const newConfig = newConfigResult.data;
+	assertNotificationWebhookOriginAllowed(newConfig);
 
 	const encryptedConfig = await encryptNotificationConfig(newConfig);
 	updateData.config = encryptedConfig;
@@ -132,6 +192,7 @@ const testDestination = async (id: number) => {
 	const destination = await getDestination(id);
 
 	const decryptedConfig = await decryptNotificationConfig(destination.config);
+	assertNotificationWebhookOriginAllowed(decryptedConfig);
 
 	const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
@@ -329,6 +390,7 @@ const sendBackupNotification = async (
 		for (const assignment of relevantAssignments) {
 			try {
 				const decryptedConfig = await decryptNotificationConfig(assignment.destination.config);
+				assertNotificationWebhookOriginAllowed(decryptedConfig);
 				const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
 				const result = await sendNotification({ shoutrrrUrl, title, body });

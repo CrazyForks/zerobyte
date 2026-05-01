@@ -97,5 +97,29 @@ describe("notifications security", () => {
 
 			expect(res.status).toBe(400);
 		});
+
+		test("should return 400 for notification webhook origins outside the allowlist", async () => {
+			const res = await app.request("/api/v1/notifications/destinations", {
+				method: "POST",
+				headers: {
+					...session.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					name: "Blocked webhook",
+					config: {
+						type: "generic",
+						url: "https://hooks.example.com/backup",
+						method: "POST",
+					},
+				}),
+			});
+
+			expect(res.status).toBe(400);
+			const body = await res.json();
+			expect(body.message).toBe(
+				"Notification webhook URL origin is not allowed. Add https://hooks.example.com to WEBHOOK_ALLOWED_ORIGINS.",
+			);
+		});
 	});
 });
