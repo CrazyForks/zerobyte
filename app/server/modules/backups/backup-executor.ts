@@ -11,6 +11,8 @@ import { createBackupOptions } from "./backup.helpers";
 import { toErrorDetails } from "../../utils/errors";
 
 const LOCAL_AGENT_ID = "local";
+const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
+const IGNORE_INODE_FLAG = "--ignore-inode";
 
 type BackupExecutionRequest = {
 	scheduleId: number;
@@ -33,6 +35,11 @@ const createBackupRunPayload = async ({
 }: BackupExecutionRequest & { jobId: string }): Promise<BackupRunPayload> => {
 	const sourcePath = getVolumePath(volume);
 	const { signal: _, ...options } = createBackupOptions(schedule, sourcePath);
+
+	if (FUSE_VOLUME_BACKENDS.has(volume.type) && !options.customResticParams.includes(IGNORE_INODE_FLAG)) {
+		options.customResticParams = [...options.customResticParams, IGNORE_INODE_FLAG];
+	}
+
 	const repositoryConfig = await decryptRepositoryConfig(repository.config);
 	const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(organizationId);
 	const resticPassword = await resticDeps.resolveSecret(encryptedResticPassword);

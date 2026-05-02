@@ -311,6 +311,94 @@ describe("backup execution - validation failures", () => {
 		);
 	});
 
+	test("adds ignore-inode by default for FUSE-backed volumes", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume({
+			type: "sftp",
+			config: {
+				backend: "sftp",
+				host: "storage.example.com",
+				port: 22,
+				username: "backup",
+				privateKey: "key",
+				path: "/data",
+				skipHostKeyCheck: false,
+			},
+		});
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runBackupMock).toHaveBeenCalledWith(
+			"local",
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					options: expect.objectContaining({
+						customResticParams: ["--ignore-inode"],
+					}),
+				}),
+			}),
+		);
+	});
+
+	test("does not add ignore-inode by default for directory volumes", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runBackupMock).toHaveBeenCalledWith(
+			"local",
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					options: expect.objectContaining({
+						customResticParams: [],
+					}),
+				}),
+			}),
+		);
+	});
+
+	test("does not duplicate ignore-inode when already configured", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume({
+			type: "rclone",
+			config: {
+				backend: "rclone",
+				remote: "remote",
+				path: "/data",
+			},
+		});
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			customResticParams: ["--ignore-inode"],
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runBackupMock).toHaveBeenCalledWith(
+			"local",
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					options: expect.objectContaining({
+						customResticParams: ["--ignore-inode"],
+					}),
+				}),
+			}),
+		);
+	});
+
 	test("should fail backup when the local agent is unavailable", async () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume();
