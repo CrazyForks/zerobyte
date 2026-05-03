@@ -125,6 +125,33 @@ test("sends warning details to the post-backup webhook for a non-zero completed 
 	});
 });
 
+test("sends warning details to the post-backup webhook for a zero-exit completed backup with warnings", async () => {
+	let postBody: WebhookBody | undefined;
+
+	server.use(
+		http.post("http://localhost:8080/post", async ({ request }) => {
+			postBody = (await request.json()) as WebhookBody;
+			return new HttpResponse(null, { status: 204 });
+		}),
+	);
+
+	const result = await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: { url: "http://localhost:8080/post" },
+		},
+		runBackup: () => completedBackup("snapshot-1", 0, "Backup was stopped by the user"),
+	});
+
+	expect(postBody).toMatchObject({ status: "warning", error: "Backup was stopped by the user" });
+	expect(result).toEqual({
+		status: "completed",
+		exitCode: 0,
+		result: "snapshot-1",
+		warningDetails: "Backup was stopped by the user",
+	});
+});
+
 test("sends error details to the post-backup webhook when the backup fails", async () => {
 	let postBody: WebhookBody | undefined;
 

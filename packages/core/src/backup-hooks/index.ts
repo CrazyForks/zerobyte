@@ -96,12 +96,16 @@ const appendDetails = (primary: string | null | undefined, next: string | null |
 	return [primary, next].filter(Boolean).join("\n\n");
 };
 
-const getCompletedStatus = (exitCode: number, signal: AbortSignal): BackupWebhookStatus => {
+const getCompletedStatus = (
+	exitCode: number,
+	warningDetails: string | null,
+	signal: AbortSignal,
+): BackupWebhookStatus => {
 	if (signal.aborted) {
 		return "cancelled";
 	}
 
-	return exitCode === 0 ? "success" : "warning";
+	return exitCode === 0 && !warningDetails ? "success" : "warning";
 };
 
 const createAbortController = (timeoutMs: number, signal?: AbortSignal) => {
@@ -284,7 +288,7 @@ export const runBackupLifecycle = <TResult>({
 			Effect.map((result) => ({
 				status: "completed" as const,
 				...result,
-				hookStatus: getCompletedStatus(result.exitCode, signal),
+				hookStatus: getCompletedStatus(result.exitCode, result.warningDetails, signal),
 				hookError: signal.aborted ? formatError(signal.reason) : (result.warningDetails ?? undefined),
 			})),
 			Effect.catchAll((error) => {

@@ -6,7 +6,7 @@ import {
 	backupScheduleNotificationsTable,
 	type NotificationDestination,
 } from "../../db/schema";
-import { logger } from "@zerobyte/core/node";
+import { logger, sanitizeSensitiveData } from "@zerobyte/core/node";
 import { isAllowedWebhookUrl } from "@zerobyte/core/backup-hooks";
 import { sendNotification } from "../../utils/shoutrrr";
 import { formatDuration } from "~/utils/utils";
@@ -19,6 +19,12 @@ import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";
 import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
 import { serverEvents } from "~/server/core/events";
+
+const MAX_DELIVERY_ERROR_LENGTH = 2048;
+
+const formatDeliveryError = (error?: string) => {
+	return sanitizeSensitiveData(error ?? "Unknown error").slice(0, MAX_DELIVERY_ERROR_LENGTH);
+};
 
 const getCustomShoutrrrWebhookUrl = (shoutrrrUrl: string) => {
 	if (!URL.canParse(shoutrrrUrl)) {
@@ -195,7 +201,7 @@ const updateDeliveryStatus = async (destinationId: number, result: { success: bo
 		.set({
 			status: result.success ? "healthy" : "error",
 			lastChecked: Date.now(),
-			lastError: result.success ? null : (result.error ?? "Unknown error"),
+			lastError: result.success ? null : formatDeliveryError(result.error),
 			updatedAt: Date.now(),
 		})
 		.where(eq(notificationDestinationsTable.id, destinationId))
