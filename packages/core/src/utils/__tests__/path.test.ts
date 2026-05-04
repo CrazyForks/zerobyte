@@ -1,7 +1,7 @@
 import path from "node:path";
 import fc from "fast-check";
 import { describe, expect, test } from "vitest";
-import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
+import { isPathWithin, normalizeAbsolutePath } from "../path";
 
 const safePathSegmentArb = fc
 	.array(fc.constantFrom("a", "b", "c", "x", "y", "z", "0", "1", "2", "-", "_", ".", " "), {
@@ -39,6 +39,12 @@ describe("normalizeAbsolutePath", () => {
 	test("handles URI encoded paths", () => {
 		expect(normalizeAbsolutePath("/foo%20bar")).toBe("/foo bar");
 		expect(normalizeAbsolutePath("foo%2Fbar")).toBe("/foo/bar");
+	});
+
+	test("preserves spaces inside path segments", () => {
+		expect(normalizeAbsolutePath("! \\")).toBe("/! ");
+		expect(normalizeAbsolutePath("/foo ")).toBe("/foo ");
+		expect(normalizeAbsolutePath(" foo")).toBe("/ foo");
 	});
 
 	test("prevents parent traversal beyond root", () => {

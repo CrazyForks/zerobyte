@@ -1,12 +1,11 @@
 export const normalizeAbsolutePath = (value?: string): string => {
-	const trimmed = value?.trim();
-	if (!trimmed) return "/";
+	if (!value?.trim()) return "/";
 
 	let normalizedInput: string;
 	try {
-		normalizedInput = decodeURIComponent(trimmed).replace(/\\+/g, "/");
+		normalizedInput = decodeURIComponent(value).replace(/\\+/g, "/");
 	} catch {
-		normalizedInput = trimmed.replace(/\\+/g, "/");
+		normalizedInput = value.replace(/\\+/g, "/");
 	}
 	const withLeadingSlash = normalizedInput.startsWith("/") ? normalizedInput : `/${normalizedInput}`;
 
