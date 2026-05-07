@@ -3,8 +3,12 @@
 	"extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
 	"enabledManagers": ["bun", "github-actions"],
 	"minimumReleaseAge": "1 day",
-	"rangeStrategy": "bump",
 	"packageRules": [
+		{
+			"matchManagers": ["github-actions"],
+			"matchUpdateTypes": ["digest", "pinDigest"],
+			"minimumReleaseAge": null
+		},
 		{
 			"matchManagers": ["bun"],
 			"matchUpdateTypes": ["minor", "patch"],
