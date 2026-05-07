@@ -9,8 +9,8 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 	};
 });
 
-vi.mock("../../../../utils/mountinfo", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("../../../../utils/mountinfo")>();
+vi.mock("../fs", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../fs")>();
 
 	return {
 		...actual,
@@ -19,14 +19,14 @@ vi.mock("../../../../utils/mountinfo", async (importOriginal) => {
 });
 
 import * as fs from "node:fs/promises";
-import * as mountinfo from "../../../../utils/mountinfo";
-import { assertMounted } from "../backend-utils";
+import * as volumeFs from "../fs";
+import { assertMounted } from "./utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-describe("assertMountedFilesystem", () => {
+describe("assertMounted", () => {
 	test("throws when the path is not accessible", async () => {
 		vi.mocked(fs.access).mockRejectedValueOnce(new Error("missing"));
 
@@ -37,7 +37,7 @@ describe("assertMountedFilesystem", () => {
 
 	test("throws when the mount filesystem does not match", async () => {
 		vi.mocked(fs.access).mockResolvedValueOnce(undefined);
-		vi.mocked(mountinfo.getMountForPath).mockResolvedValueOnce({
+		vi.mocked(volumeFs.getMountForPath).mockResolvedValueOnce({
 			mountPoint: "/tmp/volume",
 			fstype: "cifs",
 		});
@@ -49,7 +49,7 @@ describe("assertMountedFilesystem", () => {
 
 	test("accepts a matching mounted filesystem", async () => {
 		vi.mocked(fs.access).mockResolvedValueOnce(undefined);
-		vi.mocked(mountinfo.getMountForPath).mockResolvedValueOnce({
+		vi.mocked(volumeFs.getMountForPath).mockResolvedValueOnce({
 			mountPoint: "/tmp/volume",
 			fstype: "nfs4",
 		});

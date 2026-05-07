@@ -1,4 +1,4 @@
-import { Effect, Queue, Ref, type Scope } from "effect";
+import { Deferred, Effect, Queue, Ref, type Scope } from "effect";
 import type { AgentKind } from "../../../db/schema";
 import {
 	createControllerMessage,
@@ -7,6 +7,8 @@ import {
 	type BackupCancelPayload,
 	type BackupRunPayload,
 	type ControllerWireMessage,
+	type VolumeCommand,
+	type VolumeCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
@@ -27,13 +29,23 @@ type SessionState = {
 	lastPongAt: number | null;
 };
 
-export type ControllerAgentSessionEvent = AgentMessage | { type: "agent.disconnected" };
+type PendingCommand = {
+	deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>;
+	description: string;
+};
+
+export type ControllerAgentSessionEvent =
+	| Exclude<AgentMessage, { type: "volume.commandResult" }>
+	| {
+			type: "agent.disconnected";
+	  };
 
 export type ControllerAgentSession = {
 	readonly connectionId: string;
 	handleMessage: (data: string) => Effect.Effect<void>;
 	sendBackup: (payload: BackupRunPayload) => Effect.Effect<boolean>;
 	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<boolean>;
+	runVolumeCommand: (command: VolumeCommand) => Effect.Effect<VolumeCommandResponsePayload, Error>;
 	isReady: () => Effect.Effect<boolean>;
 	run: Effect.Effect<void, never, Scope.Scope>;
 };
@@ -45,6 +57,7 @@ export const createControllerAgentSession = (
 	Effect.gen(function* () {
 		let isClosed = false;
 		const outboundQueue = yield* Queue.bounded<ControllerWireMessage>(64);
+		const pendingCommands = yield* Ref.make(new Map<string, PendingCommand>());
 		const state = yield* Ref.make<SessionState>({
 			isReady: false,
 			lastSeenAt: null,
@@ -63,9 +76,33 @@ export const createControllerAgentSession = (
 
 		const updateState = (update: (current: SessionState) => SessionState) => Ref.update(state, update);
 
+		const setPendingCommand = (commandId: string, pending: PendingCommand) =>
+			Ref.update(pendingCommands, (current) => new Map(current).set(commandId, pending));
+
+		const removePendingCommand = (commandId: string) =>
+			Ref.modify(pendingCommands, (current) => {
+				const pending = current.get(commandId) ?? null;
+				const next = new Map(current);
+				next.delete(commandId);
+				return [pending, next];
+			});
+
+		const rejectPendingCommands = Effect.gen(function* () {
+			const pendingCommandEntries = yield* Ref.get(pendingCommands);
+			yield* Ref.set(pendingCommands, new Map());
+
+			for (const pending of pendingCommandEntries.values()) {
+				yield* Deferred.fail(
+					pending.deferred,
+					new Error(`Agent session closed before ${pending.description} completed`),
+				);
+			}
+		});
+
 		const releaseSession = Effect.gen(function* () {
 			const disconnectedAt = Date.now();
 			yield* updateState((current) => ({ ...current, isReady: false, lastSeenAt: disconnectedAt }));
+			yield* rejectPendingCommands;
 			yield* onEvent({ type: "agent.disconnected" });
 
 			yield* Queue.shutdown(outboundQueue);
@@ -129,20 +166,42 @@ export const createControllerAgentSession = (
 			return yield* Effect.never;
 		});
 
+		const handleVolumeCommandResult = (payload: VolumeCommandResponsePayload) =>
+			Effect.gen(function* () {
+				const pending = yield* removePendingCommand(payload.commandId);
+				if (!pending) {
+					yield* logger.effect.warn(`Received response for unknown volume command ${payload.commandId}`);
+					return;
+				}
+
+				yield* Deferred.succeed(pending.deferred, payload);
+			});
+
 		const handleAgentMessage = (message: AgentMessage) =>
 			Effect.gen(function* () {
-				if (message.type === "agent.ready") {
-					const readyAt = Date.now();
-					yield* updateState((current) => ({ ...current, isReady: true, lastSeenAt: readyAt }));
-					yield* logger.effect.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
+				switch (message.type) {
+					case "agent.ready": {
+						const readyAt = Date.now();
+						yield* updateState((current) => ({ ...current, isReady: true, lastSeenAt: readyAt }));
+						yield* logger.effect.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
+						yield* onEvent(message);
+						break;
+					}
+					case "heartbeat.pong": {
+						const seenAt = Date.now();
+						yield* updateState((current) => ({ ...current, lastSeenAt: seenAt, lastPongAt: message.payload.sentAt }));
+						yield* onEvent(message);
+						break;
+					}
+					case "volume.commandResult": {
+						yield* handleVolumeCommandResult(message.payload);
+						break;
+					}
+					default: {
+						yield* onEvent(message);
+						break;
+					}
 				}
-
-				if (message.type === "heartbeat.pong") {
-					const seenAt = Date.now();
-					yield* updateState((current) => ({ ...current, lastSeenAt: seenAt, lastPongAt: message.payload.sentAt }));
-				}
-
-				yield* onEvent(message);
 			});
 
 		return {
@@ -166,6 +225,27 @@ export const createControllerAgentSession = (
 			},
 			sendBackup: (payload) => offerOutbound(createControllerMessage("backup.run", payload)),
 			sendBackupCancel: (payload) => offerOutbound(createControllerMessage("backup.cancel", payload)),
+			runVolumeCommand: (command) =>
+				Effect.gen(function* () {
+					const commandId = Bun.randomUUIDv7();
+					const description = `volume command ${command.name}`;
+					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
+					yield* setPendingCommand(commandId, { deferred, description });
+
+					const queued = yield* offerOutbound(createControllerMessage("volume.command", { commandId, command }));
+					if (!queued) {
+						yield* removePendingCommand(commandId);
+						return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));
+					}
+
+					return yield* Deferred.await(deferred).pipe(
+						Effect.timeoutFail({
+							duration: "60 seconds",
+							onTimeout: () => new Error(`Volume command ${command.name} timed out`),
+						}),
+						Effect.ensuring(removePendingCommand(commandId)),
+					);
+				}),
 			isReady: () => Ref.get(state).pipe(Effect.map((current) => current.isReady)),
 			run,
 		};
