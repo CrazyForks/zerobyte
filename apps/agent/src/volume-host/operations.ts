@@ -17,6 +17,17 @@ export const listVolumeFiles = async (
 ) => {
 	const volumePath = getVolumePath(volume);
 	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
+	const normalizedPath = path.normalize(requestedPath);
+	const requestedRelativePath = path.relative(volumePath, normalizedPath);
+
+	if (
+		requestedRelativePath === ".." ||
+		requestedRelativePath.startsWith(`..${path.sep}`) ||
+		path.isAbsolute(requestedRelativePath)
+	) {
+		throw new Error("Invalid path");
+	}
+
 	const pageSize = Math.min(Math.max(limit, 1), MAX_PAGE_SIZE);
 	const startOffset = Math.max(offset, 0);
 
@@ -25,7 +36,7 @@ export const listVolumeFiles = async (
 		const realRequestedPath = await fs.realpath(requestedPath);
 		const relative = path.relative(realVolumeRoot, realRequestedPath);
 
-		if (relative.startsWith("..") || path.isAbsolute(relative)) {
+		if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
 			throw new Error("Invalid path");
 		}
 
