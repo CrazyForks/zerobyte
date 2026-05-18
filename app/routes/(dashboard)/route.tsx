@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
 import { Layout } from "~/client/components/layout";
@@ -38,6 +38,10 @@ export const Route = createFileRoute("/(dashboard)")({
 				queryFn: () => getServerConstants(),
 			}),
 		]);
+
+		if (authContext.user && !authContext.user.hasDownloadedResticPassword) {
+			throw redirect({ to: "/download-recovery-key" });
+		}
 
 		return authContext;
 	},

@@ -59,9 +59,9 @@ export function DownloadRecoveryKeyPage() {
 				<AlertTriangle className="size-5" />
 				<AlertTitle>Important: Save This File Securely</AlertTitle>
 				<AlertDescription>
-					Your Restic password is essential for recovering your backup data. If you lose access to this server
-					without this file, your backups will be unrecoverable. Store it in a password manager or encrypted
-					storage.
+					Your Restic password is essential for recovering your backup data. If you previously downloaded this
+					file, replace that saved copy with the new download. If you lose access to this server without this
+					file, your backups will be unrecoverable. Store it in a password manager or encrypted storage.
 				</AlertDescription>
 			</Alert>
 
