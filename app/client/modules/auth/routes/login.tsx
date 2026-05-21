@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthLayout } from "~/client/components/auth-layout";
@@ -49,6 +49,39 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const [trustDevice, setTrustDevice] = useState(false);
 	const errorCode = decodeLoginError(error);
 	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
+
+	useEffect(() => {
+		const autoSignIn = async () => {
+			if (
+				typeof PublicKeyCredential === "undefined" ||
+				!PublicKeyCredential.isConditionalMediationAvailable ||
+				!(await PublicKeyCredential.isConditionalMediationAvailable())
+			) {
+				return;
+			}
+
+			await authClient.signIn.passkey({
+				autoFill: true,
+				fetchOptions: {
+					onResponse: async () => {
+						const session = await authClient.getSession();
+
+						if (
+							session.data?.user &&
+							!session.data.user.hasDownloadedResticPassword &&
+							!hasSkippedRecoveryKeyDownload(session.data.user.id)
+						) {
+							void navigate({ to: "/download-recovery-key" });
+						} else {
+							void navigate({ to: "/volumes" });
+						}
+					},
+				},
+			});
+		};
+
+		void autoSignIn();
+	}, [navigate]);
 
 	const form = useForm<LoginFormValues>({
 		resolver: zodResolver(loginSchema),
@@ -227,7 +260,13 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 							<FormItem>
 								<FormLabel>Username</FormLabel>
 								<FormControl>
-									<Input {...field} type="text" placeholder="admin" disabled={isLoggingIn} />
+									<Input
+										{...field}
+										type="text"
+										placeholder="admin"
+										disabled={isLoggingIn}
+										autoComplete="username webauthn"
+									/>
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -249,7 +288,12 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 									</button>
 								</div>
 								<FormControl>
-									<Input {...field} type="password" disabled={isLoggingIn} />
+									<Input
+										{...field}
+										type="password"
+										disabled={isLoggingIn}
+										autoComplete="current-password webauthn"
+									/>
 								</FormControl>
 								<FormMessage />
 							</FormItem>
