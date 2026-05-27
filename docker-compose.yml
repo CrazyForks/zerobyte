@@ -65,6 +65,8 @@ services:
       - WEBHOOK_ALLOWED_ORIGINS=http://host.docker.internal:18080
       - NODE_EXTRA_CA_CERTS=/tinyauth-ca/caddy/pki/authorities/local/root.crt
       - SSL_CERT_FILE=/tinyauth-ca/caddy/pki/authorities/local/root.crt
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     devices:
       - /dev/fuse:/dev/fuse
     cap_add:
