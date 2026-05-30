@@ -18,7 +18,7 @@ import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/reposi
 import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
 import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 import { cryptoUtils } from "~/server/utils/crypto";
-import { toMessage } from "~/server/utils/errors";
+import { runEffectPromise, toMessage } from "~/server/utils/errors";
 import { generateShortId } from "~/server/utils/id";
 
 const envSecretPrefix = "env://";
@@ -171,9 +171,12 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 			});
 
 			if (!repository.config.isExistingRepository) {
-				const result = await restic
-					.init(encryptedConfig, repository.organizationId, { timeoutMs: appConfig.serverIdleTimeout * 1000 })
-					.catch((error) => ({ success: false, error }));
+				const result = await runEffectPromise(
+					restic.init(encryptedConfig, {
+						organizationId: repository.organizationId,
+						timeoutMs: appConfig.serverIdleTimeout * 1000,
+					}),
+				).catch((error) => ({ success: false, error }));
 
 				await db
 					.update(repositoriesTable)
@@ -186,7 +189,9 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 					.where(eq(repositoriesTable.id, id));
 
 				if (result.error) {
-					logger.error(`Provisioned repository ${repository.name} failed to initialize: ${toMessage(result.error)}`);
+					logger.error(
+						`Provisioned repository ${repository.name} failed to initialize: ${toMessage(result.error)}`,
+					);
 				}
 			}
 			continue;
