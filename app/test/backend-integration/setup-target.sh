@@ -4,8 +4,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_HOST="192.168.2.41"
 TARGET="root@$TARGET_HOST"
-FIXTURE_UID="1000"
-FIXTURE_GID="1000"
 
 ARTIFACTS_DIR="$SCRIPT_DIR/artifacts/$TARGET_HOST"
 KNOWN_HOSTS_PATH="$ARTIFACTS_DIR/known_hosts"
@@ -30,12 +28,10 @@ chmod 700 "$ARTIFACTS_DIR"
 
 SFTP_PASSWORD="$(read_or_create_secret "$SFTP_PASSWORD_FILE")"
 
-ssh "$TARGET" bash -s -- "$FIXTURE_UID" "$FIXTURE_GID" "$SFTP_PASSWORD" <<'REMOTE'
+ssh "$TARGET" bash -s -- "$SFTP_PASSWORD" <<'REMOTE'
 set -euo pipefail
 
-fixture_uid="$1"
-fixture_gid="$2"
-sftp_password="$3"
+sftp_password="$1"
 legacy_sshd_dir="/etc/ssh/zerobyte-backend-integration-legacy"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -46,29 +42,18 @@ write_file() {
 }
 
 apt-get update
-apt-get install -y nfs-kernel-server openssh-server rpcbind
+apt-get install -y openssh-server
 
 id -u zerobyte-sftp >/dev/null 2>&1 || useradd --create-home --home-dir /home/zerobyte-sftp --shell /bin/bash zerobyte-sftp
 
 install -d -m 0755 /srv/zerobyte-backend-integration/fixtures/case-a/docs
 printf 'hello from zerobyte integration\n' >/srv/zerobyte-backend-integration/fixtures/case-a/hello.txt
 printf 'fixture documentation\n' >/srv/zerobyte-backend-integration/fixtures/case-a/docs/readme.md
-chown -R "$fixture_uid:$fixture_gid" /srv/zerobyte-backend-integration/fixtures
 find /srv/zerobyte-backend-integration/fixtures -type d -exec chmod 0755 {} +
 find /srv/zerobyte-backend-integration/fixtures -type f -exec chmod 0644 {} +
 
 printf 'zerobyte-sftp:%s\n' "$sftp_password" | chpasswd
 passwd -u zerobyte-sftp >/dev/null 2>&1 || true
-
-write_file /etc/exports <<'EOF'
-/srv/zerobyte-backend-integration/fixtures *(ro,sync,no_subtree_check,insecure)
-EOF
-exportfs -ra
-systemctl unmask rpcbind rpcbind.socket >/dev/null 2>&1
-systemctl start rpcbind.socket
-systemctl start rpcbind
-systemctl start proc-fs-nfsd.mount
-systemctl restart nfs-kernel-server
 
 install -d -m 0700 "$legacy_sshd_dir"
 if [[ ! -f "$legacy_sshd_dir/ssh_host_rsa_key" ]]; then
@@ -143,8 +128,6 @@ if ! ssh-keyscan -T 5 -p 2222 "$TARGET_HOST" >>"$KNOWN_HOSTS_PATH" 2>/dev/null; 
 fi
 
 	INTEGRATION_HOST="$TARGET_HOST" \
-	FIXTURE_UID="$FIXTURE_UID" \
-	FIXTURE_GID="$FIXTURE_GID" \
 	SFTP_PASSWORD="$SFTP_PASSWORD" \
 	KNOWN_HOSTS_PATH="$KNOWN_HOSTS_PATH" \
 	CONFIG_PATH="$CONFIG_PATH" \

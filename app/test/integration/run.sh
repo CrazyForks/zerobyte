@@ -36,7 +36,7 @@ if [[ "$exit_code" -eq 0 ]]; then
 fi
 
 if [[ "$exit_code" -eq 0 ]]; then
-	"${compose[@]}" up --build --no-color --detach --wait sftp webdav smb >>"$docker_output_log" 2>&1 || exit_code=$?
+	"${compose[@]}" up --build --no-color --detach --wait sftp webdav smb nfs >>"$docker_output_log" 2>&1 || exit_code=$?
 fi
 
 if [[ "$exit_code" -eq 0 ]]; then

@@ -4,6 +4,7 @@ import path from "node:path";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { Effect } from "effect";
 import { expect, test } from "vitest";
+import { makeNfsBackend } from "../../../../apps/agent/src/volume-host/backends/nfs";
 import { makeSmbBackend } from "../../../../apps/agent/src/volume-host/backends/smb";
 import { makeSftpBackend } from "../../../../apps/agent/src/volume-host/backends/sftp";
 import { makeWebdavBackend } from "../../../../apps/agent/src/volume-host/backends/webdav";
@@ -11,6 +12,7 @@ import type { VolumeBackend } from "../../../../apps/agent/src/volume-host/types
 import { INTEGRATION_ORGANIZATION_ID, INTEGRATION_RUNS_DIR } from "./constants";
 import { assertFixtureSourceExists, assertRestoredFixture, assertSnapshotContainsFixture } from "./helpers/assertions";
 import { createStaticVolumeFixture } from "./helpers/fixture";
+import { buildNfsVolumeConfig } from "./helpers/nfs";
 import { createIntegrationRestic } from "./helpers/restic";
 import {
 	buildSftpPasswordVolumeConfig,
@@ -57,6 +59,11 @@ const scenarios: VolumeScenario[] = [
 		name: "SMB volume with local repository",
 		createBackend: async (mountPath) => makeSmbBackend(buildSmbVolumeConfig(), mountPath),
 	},
+	{
+		id: "nfs-local-repo",
+		name: "NFS volume with local repository",
+		createBackend: async (mountPath) => makeNfsBackend(buildNfsVolumeConfig(), mountPath),
+	},
 ];
 
 const volumeMountTest = process.env.SKIP_VOLUME_MOUNT_INTEGRATION_TESTS === "true" ? test.skip : test;
@@ -97,6 +104,15 @@ volumeMountTest.concurrent.each(scenarios)("$name can backup and restore static 
 	try {
 		await fs.mkdir(workspace, { recursive: true });
 
+		const initResult = await Effect.runPromise(
+			restic.init(repositoryConfig, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				timeoutMs: 120_000,
+			}),
+		);
+		expect(initResult.success).toBe(true);
+		expect(initResult.error).toBeNull();
+
 		backend = await scenario.createBackend(mountPath);
 
 		const mountResult = await backend.mount();
@@ -107,15 +123,6 @@ volumeMountTest.concurrent.each(scenarios)("$name can backup and restore static 
 
 		const fixture = createStaticVolumeFixture(path.join(mountPath, "case-a"));
 		await assertFixtureSourceExists(fixture);
-
-		const initResult = await Effect.runPromise(
-			restic.init(repositoryConfig, {
-				organizationId: INTEGRATION_ORGANIZATION_ID,
-				timeoutMs: 120_000,
-			}),
-		);
-		expect(initResult.success).toBe(true);
-		expect(initResult.error).toBeNull();
 
 		const backupResult = await Effect.runPromise(
 			restic.backup(repositoryConfig, fixture.sourceRoot, {

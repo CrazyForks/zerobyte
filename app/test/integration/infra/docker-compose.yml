@@ -81,6 +81,18 @@ services:
       timeout: 5s
       retries: 30
 
+  nfs:
+    build:
+      context: ./nfs
+    privileged: true
+    volumes:
+      - nfs-data:/srv/zerobyte-integration
+    healthcheck:
+      test: ["CMD", "sh", "-c", "exportfs -v | grep -q /srv/zerobyte-integration/fixtures"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
   integration:
     build:
       context: ../../../..
@@ -95,6 +107,8 @@ services:
       webdav:
         condition: service_healthy
       smb:
+        condition: service_healthy
+      nfs:
         condition: service_healthy
     cap_add:
       - SYS_ADMIN
@@ -111,3 +125,4 @@ services:
 volumes:
   rustfs-data:
   sftp-data:
+  nfs-data:
