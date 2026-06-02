@@ -336,6 +336,12 @@ Zerobyte allows you to easily restore your data from backups. To restore data, n
 
 Zerobyte uses [better-auth](https://github.com/better-auth/better-auth) for authentication and session management. The authentication system automatically adapts to your deployment scenario:
 
+### Users and roles
+
+Zerobyte does not currently provide fine-grained RBAC for backup operations. Authenticated organization members are trusted operators for repositories, volumes, backup schedules, restores, and notification destinations in their organization.
+
+Organization roles mainly restrict organization-management and instance-management actions. For example, normal members cannot manage members, SSO settings, invitations, registration, or global users, but they can still operate backup resources. Only add users to an organization if you are comfortable with them using the storage, volume, and notification capabilities configured for the instance.
+
 ### Cookie security
 
 - **IP Address/HTTP access**: Set `BASE_URL=http://192.168.1.50:4096` (or your IP). Cookies will use `Secure: false`, allowing immediate login without SSL.
