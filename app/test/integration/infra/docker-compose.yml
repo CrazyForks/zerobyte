@@ -59,6 +59,28 @@ services:
       timeout: 5s
       retries: 30
 
+  smb:
+    build:
+      context: ./smb
+    environment:
+      SMB_USER: "zerobyte-smb"
+      SMB_PASSWORD: "zerobyte-smb-password"
+      SMB_SHARE: "zerobyte-integration"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "smbclient",
+          "//localhost/zerobyte-integration",
+          "-U",
+          "zerobyte-smb%zerobyte-smb-password",
+          "-c",
+          "get case-a/hello.txt /tmp/zerobyte-smb-healthcheck.txt",
+        ]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
   integration:
     build:
       context: ../../../..
@@ -71,6 +93,8 @@ services:
       sftp:
         condition: service_healthy
       webdav:
+        condition: service_healthy
+      smb:
         condition: service_healthy
     cap_add:
       - SYS_ADMIN

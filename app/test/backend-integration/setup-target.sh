@@ -11,7 +11,6 @@ ARTIFACTS_DIR="$SCRIPT_DIR/artifacts/$TARGET_HOST"
 KNOWN_HOSTS_PATH="$ARTIFACTS_DIR/known_hosts"
 CONFIG_PATH="$ARTIFACTS_DIR/config.generated.json"
 
-SMB_PASSWORD_FILE="$ARTIFACTS_DIR/smb-password.txt"
 SFTP_PASSWORD_FILE="$ARTIFACTS_DIR/sftp-password.txt"
 
 read_or_create_secret() {
@@ -29,16 +28,14 @@ read_or_create_secret() {
 mkdir -p "$ARTIFACTS_DIR"
 chmod 700 "$ARTIFACTS_DIR"
 
-SMB_PASSWORD="$(read_or_create_secret "$SMB_PASSWORD_FILE")"
 SFTP_PASSWORD="$(read_or_create_secret "$SFTP_PASSWORD_FILE")"
 
-ssh "$TARGET" bash -s -- "$FIXTURE_UID" "$FIXTURE_GID" "$SMB_PASSWORD" "$SFTP_PASSWORD" <<'REMOTE'
+ssh "$TARGET" bash -s -- "$FIXTURE_UID" "$FIXTURE_GID" "$SFTP_PASSWORD" <<'REMOTE'
 set -euo pipefail
 
 fixture_uid="$1"
 fixture_gid="$2"
-smb_password="$3"
-sftp_password="$4"
+sftp_password="$3"
 legacy_sshd_dir="/etc/ssh/zerobyte-backend-integration-legacy"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -49,10 +46,9 @@ write_file() {
 }
 
 apt-get update
-apt-get install -y nfs-kernel-server openssh-server rpcbind samba
+apt-get install -y nfs-kernel-server openssh-server rpcbind
 
 id -u zerobyte-sftp >/dev/null 2>&1 || useradd --create-home --home-dir /home/zerobyte-sftp --shell /bin/bash zerobyte-sftp
-id -u zerobyte-smb >/dev/null 2>&1 || useradd --create-home --home-dir /home/zerobyte-smb --shell /bin/bash zerobyte-smb
 
 install -d -m 0755 /srv/zerobyte-backend-integration/fixtures/case-a/docs
 printf 'hello from zerobyte integration\n' >/srv/zerobyte-backend-integration/fixtures/case-a/hello.txt
@@ -61,8 +57,6 @@ chown -R "$fixture_uid:$fixture_gid" /srv/zerobyte-backend-integration/fixtures
 find /srv/zerobyte-backend-integration/fixtures -type d -exec chmod 0755 {} +
 find /srv/zerobyte-backend-integration/fixtures -type f -exec chmod 0644 {} +
 
-printf '%s\n%s\n' "$smb_password" "$smb_password" | smbpasswd -a -s zerobyte-smb >/dev/null
-smbpasswd -e zerobyte-smb >/dev/null
 printf 'zerobyte-sftp:%s\n' "$sftp_password" | chpasswd
 passwd -u zerobyte-sftp >/dev/null 2>&1 || true
 
@@ -75,15 +69,6 @@ systemctl start rpcbind.socket
 systemctl start rpcbind
 systemctl start proc-fs-nfsd.mount
 systemctl restart nfs-kernel-server
-
-write_file /etc/samba/smb.conf <<'EOF'
-[zerobyte-backend-integration]
-	path = /srv/zerobyte-backend-integration/fixtures
-	browseable = yes
-	read only = yes
-	guest ok = no
-	valid users = zerobyte-smb
-EOF
 
 install -d -m 0700 "$legacy_sshd_dir"
 if [[ ! -f "$legacy_sshd_dir/ssh_host_rsa_key" ]]; then
@@ -139,7 +124,6 @@ EOF
 systemctl daemon-reload
 systemctl enable --now zerobyte-backend-integration-legacy-sshd.service
 
-systemctl restart smbd
 systemctl restart ssh
 systemctl restart zerobyte-backend-integration-legacy-sshd.service
 systemctl is-active --quiet zerobyte-backend-integration-legacy-sshd.service
@@ -158,10 +142,9 @@ if ! ssh-keyscan -T 5 -p 2222 "$TARGET_HOST" >>"$KNOWN_HOSTS_PATH" 2>/dev/null; 
 	exit 1
 fi
 
-INTEGRATION_HOST="$TARGET_HOST" \
+	INTEGRATION_HOST="$TARGET_HOST" \
 	FIXTURE_UID="$FIXTURE_UID" \
 	FIXTURE_GID="$FIXTURE_GID" \
-	SMB_PASSWORD="$SMB_PASSWORD" \
 	SFTP_PASSWORD="$SFTP_PASSWORD" \
 	KNOWN_HOSTS_PATH="$KNOWN_HOSTS_PATH" \
 	CONFIG_PATH="$CONFIG_PATH" \

@@ -29,18 +29,18 @@ chmod 644 "$sftp_artifacts_dir/id_ed25519.pub"
 docker build --progress quiet --target runtime-tools -t "$base_image" "$repo_root" >"$docker_output_log" 2>&1
 
 exit_code=0
-"${compose[@]}" up --build --quiet-build --no-color --detach rustfs >>"$docker_output_log" 2>&1 || exit_code=$?
+"${compose[@]}" up --build --no-color --detach rustfs >>"$docker_output_log" 2>&1 || exit_code=$?
 
 if [[ "$exit_code" -eq 0 ]]; then
-	"${compose[@]}" up --build --quiet-build --no-color --abort-on-container-exit --exit-code-from rustfs-setup rustfs-setup >>"$docker_output_log" 2>&1 || exit_code=$?
+	"${compose[@]}" up --build --no-color --abort-on-container-exit --exit-code-from rustfs-setup rustfs-setup >>"$docker_output_log" 2>&1 || exit_code=$?
 fi
 
 if [[ "$exit_code" -eq 0 ]]; then
-	"${compose[@]}" up --build --quiet-build --no-color --detach --wait sftp webdav >>"$docker_output_log" 2>&1 || exit_code=$?
+	"${compose[@]}" up --build --no-color --detach --wait sftp webdav smb >>"$docker_output_log" 2>&1 || exit_code=$?
 fi
 
 if [[ "$exit_code" -eq 0 ]]; then
-	"${compose[@]}" run --rm --no-deps --build --quiet-build integration 2>>"$docker_output_log" || exit_code=$?
+	"${compose[@]}" run --rm --no-deps --build integration 2>>"$docker_output_log" || exit_code=$?
 fi
 
 if [[ "$exit_code" -ne 0 ]]; then

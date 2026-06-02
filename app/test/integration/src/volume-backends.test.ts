@@ -4,6 +4,7 @@ import path from "node:path";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { Effect } from "effect";
 import { expect, test } from "vitest";
+import { makeSmbBackend } from "../../../../apps/agent/src/volume-host/backends/smb";
 import { makeSftpBackend } from "../../../../apps/agent/src/volume-host/backends/sftp";
 import { makeWebdavBackend } from "../../../../apps/agent/src/volume-host/backends/webdav";
 import type { VolumeBackend } from "../../../../apps/agent/src/volume-host/types";
@@ -17,6 +18,7 @@ import {
 	readSftpPrivateKey,
 	scanSftpKnownHosts,
 } from "./helpers/sftp";
+import { buildSmbVolumeConfig } from "./helpers/smb";
 import { buildWebdavVolumeConfig } from "./helpers/webdav";
 
 type VolumeScenario = {
@@ -49,6 +51,11 @@ const scenarios: VolumeScenario[] = [
 		id: "webdav-local-repo",
 		name: "WebDAV volume with local repository",
 		createBackend: async (mountPath) => makeWebdavBackend(buildWebdavVolumeConfig(), mountPath),
+	},
+	{
+		id: "smb-local-repo",
+		name: "SMB volume with local repository",
+		createBackend: async (mountPath) => makeSmbBackend(buildSmbVolumeConfig(), mountPath),
 	},
 ];
 
