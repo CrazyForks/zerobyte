@@ -28,5 +28,8 @@ jobs:
         if: failure()
         with:
           name: integration-artifacts
-          path: app/test/integration/artifacts/
+          path: |
+            app/test/integration/artifacts/compose.log
+            app/test/integration/artifacts/docker-output.log
+            app/test/integration/artifacts/runs/**
           retention-days: 5
