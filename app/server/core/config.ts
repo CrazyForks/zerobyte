@@ -18,6 +18,8 @@ const envSchema = z
 		MIGRATIONS_PATH: z.string().optional(),
 		APP_VERSION: z.string().default("dev"),
 		TRUSTED_ORIGINS: z.string().optional(),
+		PORTLESS_URL: z.string().optional(),
+		PORTLESS_TAILSCALE_URL: z.string().optional(),
 		TRUST_PROXY: z.string().default("false"),
 		DISABLE_RATE_LIMITING: z.string().default("false"),
 		APP_SECRET: z.preprocess((value) => (value === "" ? undefined : value), z.string().min(32).max(256).optional()),
@@ -29,10 +31,24 @@ const envSchema = z
 		PROVISIONING_PATH: z.string().optional(),
 	})
 	.transform((s, ctx) => {
-		const baseUrl = unquote(s.BASE_URL);
-		const trustedOrigins = s.TRUSTED_ORIGINS?.split(",").map(unquote).filter(Boolean).concat(baseUrl) ?? [baseUrl];
+		let baseUrl = unquote(s.BASE_URL);
+		const trustedOrigins = s.TRUSTED_ORIGINS?.split(",").map(unquote).filter(Boolean) ?? [];
+
+		if (s.NODE_ENV === "development") {
+			if (s.PORTLESS_URL) {
+				trustedOrigins.push(unquote(s.PORTLESS_URL));
+			}
+
+			if (s.PORTLESS_TAILSCALE_URL) {
+				baseUrl = unquote(s.PORTLESS_TAILSCALE_URL);
+				trustedOrigins.push(baseUrl);
+			}
+		}
+
+		trustedOrigins.push(baseUrl);
+		const uniqueTrustedOrigins = Array.from(new Set(trustedOrigins));
 		const webhookAllowedOrigins = s.WEBHOOK_ALLOWED_ORIGINS?.split(",").map(unquote).filter(Boolean) ?? [];
-		const authOrigins = [baseUrl, ...trustedOrigins];
+		const authOrigins = [baseUrl, ...uniqueTrustedOrigins];
 		const { allowedHosts, invalidOrigins } = buildAllowedHosts(authOrigins);
 		let appSecret = s.APP_SECRET;
 
@@ -108,7 +124,7 @@ const envSchema = z
 			port: s.PORT,
 			migrationsPath: s.MIGRATIONS_PATH,
 			appVersion: s.APP_VERSION,
-			trustedOrigins: trustedOrigins,
+			trustedOrigins: uniqueTrustedOrigins,
 			trustProxy: s.TRUST_PROXY === "true",
 			appSecret: appSecret ?? "",
 			baseUrl,

@@ -25,7 +25,7 @@ export function getLoginErrorDescription(errorCode: LoginErrorCode): string {
 		case "SSO_LOGIN_FAILED":
 			return "SSO authentication failed. Please try again.";
 		case PASSKEY_LOGIN_FAILED_ERROR:
-			return "Passkey sign-in failed. If 2FA is enabled, use a passkey protected by a PIN, biometrics, or screen lock, or sign in with your password and authenticator code.";
+			return "Passkey sign-in failed. The passkey didn't verify your identity with a PIN, biometrics, or screen lock. Please use a verified passkey or sign in with your password.";
 		case "ERROR_INVALID_RP_ID":
 			return "You can only sign in with a passkey on the domain set by the BASE_URL environment variable";
 	}
