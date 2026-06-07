@@ -3,18 +3,24 @@ import { validator } from "hono-openapi";
 import {
 	type PublicSsoProvidersDto,
 	type SsoSettingsDto,
+	type UserSsoInvitationsDto,
 	deleteSsoInvitationDto,
 	deleteSsoProviderDto,
 	getPublicSsoProvidersDto,
 	getSsoSettingsDto,
+	getUserSsoInvitationsDto,
+	startInvitationSsoVerificationBody,
+	startInvitationSsoVerificationDto,
 	updateSsoProviderAutoLinkingBody,
 	updateSsoProviderAutoLinkingDto,
 } from "./sso.dto";
-import { ssoService } from "./sso.service";
+import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "./sso.service";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
 import { mapAuthErrorToCode } from "./sso.errors";
 import { config } from "~/server/core/config";
+import { setCookie } from "hono/cookie";
+import { normalizeEmail } from "./utils/sso-context";
 
 export const ssoController = new Hono()
 	.get("/sso-providers", getPublicSsoProvidersDto, async (c) => {
@@ -55,6 +61,51 @@ export const ssoController = new Hono()
 			})),
 		});
 	})
+	.get("/sso-invitations", requireAuth, getUserSsoInvitationsDto, async (c) => {
+		const user = c.get("user");
+		const invitations = await ssoService.listPendingInvitationsForUser(user.email);
+
+		return c.json<UserSsoInvitationsDto>(invitations);
+	})
+	.post(
+		"/sso-invitations/:invitationId/verify",
+		requireAuth,
+		startInvitationSsoVerificationDto,
+		validator("json", startInvitationSsoVerificationBody),
+		async (c) => {
+			const user = c.get("user");
+			const invitationId = c.req.param("invitationId");
+			const { providerId } = c.req.valid("json");
+
+			const invitation = await ssoService.getPendingInvitationById(invitationId);
+			if (!invitation || normalizeEmail(invitation.email) !== normalizeEmail(user.email)) {
+				return c.json({ message: "Invitation not found" }, 404);
+			}
+
+			const provider = await ssoService.getSsoProviderForOrganization(providerId, invitation.organizationId);
+			if (!provider) {
+				return c.json({ message: "Provider not found for invitation organization" }, 400);
+			}
+
+			const token = await ssoService.createInvitationSsoIntent({
+				userId: user.id,
+				invitationId: invitation.id,
+				providerId,
+				organizationId: invitation.organizationId,
+				email: user.email,
+			});
+
+			setCookie(c, SSO_INVITATION_INTENT_COOKIE, token, {
+				httpOnly: true,
+				sameSite: "Lax",
+				secure: config.isSecure,
+				path: "/api/auth",
+				maxAge: 10 * 60,
+			});
+
+			return c.json({ success: true });
+		},
+	)
 	.delete("/sso-providers/:providerId", requireAuth, requireOrgAdmin, deleteSsoProviderDto, async (c) => {
 		const providerId = c.req.param("providerId");
 		const organizationId = c.get("organizationId");

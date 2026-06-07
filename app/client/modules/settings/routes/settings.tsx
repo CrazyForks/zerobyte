@@ -1,11 +1,9 @@
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
 	AlertTriangle,
-	Check,
 	Download,
 	Fingerprint,
 	KeyRound,
-	MailCheck,
 	User,
 	X,
 	Settings as SettingsIcon,
@@ -14,7 +12,11 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import type { GetOrgMembersResponse, GetSsoSettingsResponse } from "~/client/api-client/types.gen";
+import type {
+	GetOrgMembersResponse,
+	GetSsoSettingsResponse,
+	GetUserSsoInvitationsResponse,
+} from "~/client/api-client/types.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
@@ -30,7 +32,6 @@ import {
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { authClient } from "~/client/lib/auth-client";
@@ -49,6 +50,7 @@ import { PasskeysSection } from "../components/passkeys-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
+import { PendingInvitationsSection } from "../components/pending-invitations-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { cn } from "~/client/lib/utils";
 
@@ -57,17 +59,10 @@ const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
 
 type Props = {
 	appContext: AppContext;
-	initialUserInvitations: UserInvitation[];
+	initialUserInvitations: GetUserSsoInvitationsResponse;
 	initialMembers?: GetOrgMembersResponse;
 	initialSsoSettings?: GetSsoSettingsResponse;
 	initialOrigin?: string;
-};
-
-type UserInvitation = {
-	id: string;
-	organizationName: string;
-	role: string;
-	expiresAt: string | Date;
 };
 
 export function SettingsPage({
@@ -94,15 +89,6 @@ export function SettingsPage({
 	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
 	const { formatDateTime } = useTimeFormat();
 	const hasCredentialPassword = appContext.user?.hasCredentialPassword !== false;
-	const { data: pendingInvitations } = useSuspenseQuery<UserInvitation[]>({
-		queryKey: ["user-invitations"],
-		queryFn: async () => {
-			const { data, error } = await authClient.organization.listUserInvitations();
-			if (error) throw new Error(error.message);
-			return data ?? [];
-		},
-		initialData: initialUserInvitations,
-	});
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -142,23 +128,6 @@ export function SettingsPage({
 			toast.error("Failed to download Restic password", {
 				description: message,
 			});
-		},
-	});
-
-	const acceptInvitation = useMutation({
-		mutationFn: async (invitationId: string) => {
-			const { error } = await authClient.organization.acceptInvitation({ invitationId });
-
-			if (error) {
-				throw new Error(error.message);
-			}
-		},
-		onSuccess: () => {
-			toast.success("Invitation accepted");
-			window.location.reload();
-		},
-		onError: (error) => {
-			toast.error("Failed to accept invitation", { description: error.message });
 		},
 	});
 
@@ -297,66 +266,10 @@ export function SettingsPage({
 								</div>
 							</CardContent>
 
-							<div className="border-t border-border/50 bg-card-header p-6">
-								<CardTitle className="flex items-center gap-2">
-									<MailCheck className="size-5" />
-									Pending Invitations
-								</CardTitle>
-								<CardDescription className="mt-1.5">
-									Organization invitations sent to this account
-								</CardDescription>
-							</div>
-							<CardContent className="p-6">
-								<div className="rounded-md border">
-									<Table>
-										<TableHeader>
-											<TableRow>
-												<TableHead>Organization</TableHead>
-												<TableHead>Role</TableHead>
-												<TableHead>Expires</TableHead>
-												<TableHead className="text-right">Actions</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{pendingInvitations.map((invitation) => (
-												<TableRow key={invitation.id}>
-													<TableCell className="font-medium">
-														{invitation.organizationName}
-													</TableCell>
-													<TableCell className="uppercase">{invitation.role}</TableCell>
-													<TableCell>
-														{formatDateTime(new Date(invitation.expiresAt))}
-													</TableCell>
-													<TableCell className="text-right">
-														<Button
-															type="button"
-															variant="ghost"
-															size="icon"
-															title="Accept invitation"
-															loading={
-																acceptInvitation.isPending &&
-																acceptInvitation.variables === invitation.id
-															}
-															disabled={acceptInvitation.isPending}
-															onClick={() => acceptInvitation.mutate(invitation.id)}
-														>
-															<Check className="h-4 w-4" />
-														</Button>
-													</TableCell>
-												</TableRow>
-											))}
-											<TableRow className={cn({ hidden: pendingInvitations.length > 0 })}>
-												<TableCell
-													colSpan={4}
-													className="text-center text-sm text-muted-foreground"
-												>
-													No pending invitations.
-												</TableCell>
-											</TableRow>
-										</TableBody>
-									</Table>
-								</div>
-							</CardContent>
+							<PendingInvitationsSection
+								initialInvitations={initialUserInvitations}
+								userEmail={appContext.user?.email}
+							/>
 
 							<div className="border-t border-border/50 bg-card-header p-6">
 								<CardTitle className="flex items-center gap-2">
@@ -471,7 +384,7 @@ export function SettingsPage({
 										/>
 									</div>
 									<Button type="submit" loading={isChangingPassword} className="mt-4">
-										<KeyRound className="h-4 w-4 mr-2" />
+										<KeyRound size={16} className="mr-2" />
 										Change Password
 									</Button>
 								</form>

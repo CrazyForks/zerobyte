@@ -12,6 +12,18 @@ const publicSsoProvidersDto = z.object({
 
 export type PublicSsoProvidersDto = z.infer<typeof publicSsoProvidersDto>;
 
+const userSsoInvitationsResponse = z
+	.object({
+		id: z.string(),
+		organizationName: z.string(),
+		role: z.string(),
+		expiresAt: z.string(),
+		ssoProviders: z.object({ providerId: z.string() }).array(),
+	})
+	.array();
+
+export type UserSsoInvitationsDto = z.infer<typeof userSsoInvitationsResponse>;
+
 export const getPublicSsoProvidersDto = describeRoute({
 	description: "Get public SSO providers for the instance",
 	operationId: "getPublicSsoProviders",
@@ -64,6 +76,46 @@ export const getSsoSettingsDto = describeRoute({
 					schema: resolver(ssoSettingsResponse),
 				},
 			},
+		},
+	},
+});
+
+export const getUserSsoInvitationsDto = describeRoute({
+	description: "Get pending SSO invitations for the authenticated user",
+	operationId: "getUserSsoInvitations",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Pending SSO invitations",
+			content: {
+				"application/json": {
+					schema: resolver(userSsoInvitationsResponse),
+				},
+			},
+		},
+	},
+});
+
+export const startInvitationSsoVerificationBody = z.object({
+	providerId: z.string(),
+});
+
+export const startInvitationSsoVerificationDto = describeRoute({
+	description: "Start SSO verification for accepting an organization invitation",
+	operationId: "startInvitationSsoVerification",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "SSO verification intent created",
+		},
+		400: {
+			description: "Invalid provider",
+		},
+		403: {
+			description: "Forbidden",
+		},
+		404: {
+			description: "Invitation not found",
 		},
 	},
 });

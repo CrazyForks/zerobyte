@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
-import { account, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
+import { account, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
 import { resolveTrustedProvidersForRequest } from "../trust-provider-for-linking";
+import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "../../sso.service";
 
 function randomId() {
 	return Bun.randomUUIDv7();
@@ -12,8 +13,8 @@ function randomSlug(prefix: string) {
 	return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createRequest(path: string): Request {
-	return new Request(`http://test.local${path}`);
+function createRequest(path: string, cookie?: string): Request {
+	return new Request(`http://test.local${path}`, { headers: cookie ? { Cookie: cookie } : undefined });
 }
 
 async function createSsoProviderRecord(
@@ -60,6 +61,7 @@ describe("resolveTrustedProvidersForRequest", () => {
 		await db.delete(member);
 		await db.delete(account);
 		await db.delete(ssoProvider);
+		await db.delete(verification);
 		await db.delete(organization);
 		await db.delete(usersTable);
 	});
@@ -107,9 +109,9 @@ describe("resolveTrustedProvidersForRequest", () => {
 	test("supports callback paths nested under /api/auth", async () => {
 		await createSsoProviderRecord("prefixed-provider", true);
 
-		expect(await resolveTrustedProvidersForRequest(createRequest("/api/auth/sso/callback/prefixed-provider"))).toEqual([
-			"prefixed-provider",
-		]);
+		expect(
+			await resolveTrustedProvidersForRequest(createRequest("/api/auth/sso/callback/prefixed-provider")),
+		).toEqual(["prefixed-provider"]);
 	});
 
 	test("supports /sso/saml2/sp/acs/:providerId paths", async () => {
@@ -123,10 +125,33 @@ describe("resolveTrustedProvidersForRequest", () => {
 	test("updates trusted providers immediately when callback provider auto-linking is toggled", async () => {
 		await createSsoProviderRecord("pocket-id", true);
 
-		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual(["pocket-id"]);
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual([
+			"pocket-id",
+		]);
 
-		await db.update(ssoProvider).set({ autoLinkMatchingEmails: false }).where(eq(ssoProvider.providerId, "pocket-id"));
+		await db
+			.update(ssoProvider)
+			.set({ autoLinkMatchingEmails: false })
+			.where(eq(ssoProvider.providerId, "pocket-id"));
 
 		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual([]);
+	});
+
+	test("trusts only the callback provider selected by a valid invitation SSO intent", async () => {
+		const { organizationId, userId } = await createSsoProviderRecord("pocket-id", false);
+		await createSsoProviderRecord("acme-saml", false, { organizationId, userId });
+		const token = await ssoService.createInvitationSsoIntent({
+			userId: randomId(),
+			invitationId: randomId(),
+			providerId: "acme-saml",
+			organizationId,
+			email: "alice@example.com",
+		});
+		const cookie = `${SSO_INVITATION_INTENT_COOKIE}=${token}`;
+
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id", cookie))).toEqual([]);
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/acme-saml", cookie))).toEqual([
+			"acme-saml",
+		]);
 	});
 });

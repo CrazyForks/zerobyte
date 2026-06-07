@@ -244,6 +244,63 @@ export type GetSsoSettingsResponses = {
 
 export type GetSsoSettingsResponse = GetSsoSettingsResponses[keyof GetSsoSettingsResponses];
 
+export type GetUserSsoInvitationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/sso-invitations';
+};
+
+export type GetUserSsoInvitationsResponses = {
+    /**
+     * Pending SSO invitations
+     */
+    200: Array<{
+        id: string;
+        organizationName: string;
+        role: string;
+        expiresAt: string;
+        ssoProviders: Array<{
+            providerId: string;
+        }>;
+    }>;
+};
+
+export type GetUserSsoInvitationsResponse = GetUserSsoInvitationsResponses[keyof GetUserSsoInvitationsResponses];
+
+export type StartInvitationSsoVerificationData = {
+    body: {
+        providerId: string;
+    };
+    path: {
+        invitationId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-invitations/{invitationId}/verify';
+};
+
+export type StartInvitationSsoVerificationErrors = {
+    /**
+     * Invalid provider
+     */
+    400: unknown;
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Invitation not found
+     */
+    404: unknown;
+};
+
+export type StartInvitationSsoVerificationResponses = {
+    /**
+     * SSO verification intent created
+     */
+    200: unknown;
+};
+
 export type DeleteSsoProviderData = {
     body?: never;
     path: {

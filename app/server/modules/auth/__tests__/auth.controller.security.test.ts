@@ -42,6 +42,34 @@ describe("auth controller security", () => {
 		});
 	});
 
+	describe("authenticated user endpoints - require requireAuth", () => {
+		const authenticatedUserEndpoints = [
+			{ method: "GET", path: "/api/v1/auth/sso-invitations" },
+			{ method: "POST", path: "/api/v1/auth/sso-invitations/test-invitation/verify" },
+		];
+
+		for (const { method, path } of authenticatedUserEndpoints) {
+			test(`${method} ${path} should return 401 when unauthenticated`, async () => {
+				const res = await app.request(path, { method });
+				expect(res.status).toBe(401);
+				const body = await res.json();
+				expect(body.message).toBe("Invalid or expired session");
+			});
+
+			test(`${method} ${path} should not return 401 for regular users`, async () => {
+				const res = await app.request(path, {
+					method,
+					headers: {
+						...regularUserSession.headers,
+						"Content-Type": "application/json",
+					},
+					body: method === "POST" ? JSON.stringify({}) : undefined,
+				});
+				expect(res.status).not.toBe(401);
+			});
+		}
+	});
+
 	describe("org admin endpoints - require requireAuth + requireOrgAdmin", () => {
 		const orgAdminEndpoints = [
 			{ method: "GET", path: "/api/v1/auth/sso-settings" },

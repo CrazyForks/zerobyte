@@ -31,7 +31,7 @@ const existingMemberLocalUsername = "sso-existing-member";
 const inviteOnlyMessage =
 	"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
 const accountLinkRequiredMessage =
-	"SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict. If you have an invitation to this organization, make sure to accept it from your account page before signing in with SSO.";
+	"SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict. If you have an invitation to this organization, verify it from your account page before signing in with SSO.";
 
 type OrgMembersResponse = {
 	members: {
@@ -192,7 +192,12 @@ async function getInvitationIdByEmail(page: Page, email: string) {
 	return invitation?.id ?? null;
 }
 
-async function acceptInvitationAsLocalUser(browser: Browser, email: string, invitationId: string) {
+async function verifyInvitationAsLocalUserWithSso(
+	browser: Browser,
+	email: string,
+	invitationId: string,
+	providerId: string,
+) {
 	const context = await browser.newContext({
 		baseURL: appBaseUrl,
 		storageState: {
@@ -200,6 +205,7 @@ async function acceptInvitationAsLocalUser(browser: Browser, email: string, invi
 			origins: [],
 		},
 	});
+	const page = await context.newPage();
 
 	try {
 		const signInResponse = await context.request.post("/api/auth/sign-in/email", {
@@ -216,18 +222,39 @@ async function acceptInvitationAsLocalUser(browser: Browser, email: string, invi
 			throw new Error(`Failed to sign in local user ${email}: ${await signInResponse.text()}`);
 		}
 
-		const acceptResponse = await context.request.post("/api/auth/organization/accept-invitation", {
+		const intentResponse = await context.request.post(`/api/v1/auth/sso-invitations/${invitationId}/verify`, {
 			headers: {
 				Origin: appBaseUrl,
 			},
 			data: {
-				invitationId,
+				providerId,
 			},
 		});
 
-		if (!acceptResponse.ok()) {
-			throw new Error(`Failed to accept invitation ${invitationId} for ${email}: ${await acceptResponse.text()}`);
+		if (!intentResponse.ok()) {
+			throw new Error(`Failed to start invitation verification ${invitationId}: ${await intentResponse.text()}`);
 		}
+
+		const ssoUrl = await startSsoLogin(page, providerId);
+		await page.goto(ssoUrl);
+
+		let oidcUiState = await waitForOidcUiState(page, ["app", "authorize", "login"]);
+
+		if (oidcUiState === "login") {
+			const tinyauthLoginInput = page.locator('input[name="username"]');
+			await tinyauthLoginInput.fill(email);
+			await page.locator('input[name="password"]').fill(tinyauthPassword);
+			await page.locator('button[type="submit"]').click();
+
+			oidcUiState = await waitForOidcUiState(page, ["app", "authorize"]);
+		}
+
+		if (oidcUiState === "authorize") {
+			await page.getByRole("button", { name: /authorize|allow/i }).click();
+		}
+
+		await page.waitForURL(/\/volumes/, { timeout: 30000 });
+		await waitForAppReady(page);
 	} finally {
 		await context.close();
 	}
@@ -508,7 +535,12 @@ test("existing local org members can link via SSO without a pending invitation",
 		throw new Error(`Missing invitation for ${existingMemberLocalEmail}`);
 	}
 
-	await acceptInvitationAsLocalUser(browser, existingMemberLocalEmail, invitationId);
+	await verifyInvitationAsLocalUserWithSso(
+		browser,
+		existingMemberLocalEmail,
+		invitationId,
+		providerIds.existingMember,
+	);
 
 	await expect
 		.poll(async () => {

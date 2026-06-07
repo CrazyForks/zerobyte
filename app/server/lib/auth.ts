@@ -63,7 +63,7 @@ export const auth = betterAuth({
 			create: {
 				before: async (account, ctx) => {
 					if (ssoIntegration.isSsoCallback(ctx)) {
-						const allowed = await ssoIntegration.canLinkSsoAccount(account.userId, account.providerId);
+						const allowed = await ssoIntegration.canLinkSsoAccount(account.userId, account.providerId, ctx);
 						if (!allowed) {
 							throw new APIError("FORBIDDEN", {
 								message: ACCOUNT_LINK_REQUIRED_DESCRIPTION,
@@ -165,7 +165,6 @@ export const auth = betterAuth({
 		}),
 		organization({
 			allowUserToCreateOrganization: false,
-			requireEmailVerificationOnInvitation: false,
 		}),
 		ssoIntegration.plugin,
 		twoFactor({

@@ -62,6 +62,8 @@ async function resolveOrgMembership(userId: string, ctx: GenericEndpointContext 
 		tx.update(invitation).set({ status: "accepted" }).where(eq(invitation.id, pendingInvitation.id)).run();
 	});
 
+	await ssoService.consumeInvitationSsoIntent(ssoService.getInvitationIntentTokenFromRequest(ctx?.request));
+
 	const invitedMembership = await findMembershipWithOrganization(userId, pendingInvitation.organizationId);
 	logger.debug("Created organization membership from invitation", {
 		userId,
@@ -83,7 +85,11 @@ async function onUserCreate(
 	user.hasDownloadedResticPassword = true;
 }
 
-async function canLinkSsoAccount(userId: string, providerId: string): Promise<boolean> {
+async function canLinkSsoAccount(
+	userId: string,
+	providerId: string,
+	ctx: GenericEndpointContext | null,
+): Promise<boolean> {
 	const ssoProviderRecord = await ssoService.getSsoProviderById(providerId);
 	if (!ssoProviderRecord) {
 		return false;
@@ -113,7 +119,21 @@ async function canLinkSsoAccount(userId: string, providerId: string): Promise<bo
 		columns: { id: true },
 	});
 
-	return !existingAccount;
+	if (!existingAccount) {
+		return true;
+	}
+
+	const invitationIntent = await ssoService.getValidInvitationSsoIntent(
+		ssoService.getInvitationIntentTokenFromRequest(ctx?.request),
+	);
+
+	return (
+		invitationIntent?.userId === userId &&
+		invitationIntent.providerId === providerId &&
+		invitationIntent.organizationId === ssoProviderRecord.organizationId &&
+		invitationIntent.invitationId === pendingInvitation.id &&
+		normalizeEmail(invitationIntent.email) === normalizeEmail(user.email)
+	);
 }
 
 async function resolveOrgMembershipOrThrow(userId: string, ctx: GenericEndpointContext | null) {

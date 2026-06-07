@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, test } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
 import { createTestSession, createTestSessionWithOrgAdmin } from "~/test/helpers/auth";
+import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "../sso.service";
 
 const app = createApp();
 const ssoRegisterUrl = new URL("/api/auth/sso/register", "http://localhost:3000").toString();
@@ -12,6 +13,7 @@ const listUserInvitationsUrl = new URL(
 	"http://localhost:3000",
 ).toString();
 const acceptInvitationUrl = new URL("/api/auth/organization/accept-invitation", "http://localhost:3000").toString();
+const userSsoInvitationsUrl = new URL("/api/v1/auth/sso-invitations", "http://localhost:3000").toString();
 
 function buildRegisterBody(organizationId: string, suffix: string) {
 	return {
@@ -121,7 +123,7 @@ describe("organization invitation acceptance", () => {
 		await db.delete(usersTable);
 	});
 
-	test("allows authenticated recipients to list and accept invitations without local email verification", async () => {
+	test("requires org SSO verification before an unverified local recipient can claim an invitation", async () => {
 		const inviter = await createTestSession();
 		const recipient = await createTestSession();
 		const invitationId = Bun.randomUUIDv7();
@@ -137,18 +139,46 @@ describe("organization invitation acceptance", () => {
 			createdAt: new Date(),
 			inviterId: inviter.user.id,
 		});
+		await db.insert(ssoProvider).values([
+			{
+				id: Bun.randomUUIDv7(),
+				providerId: "oidc-primary",
+				organizationId: inviter.organizationId,
+				userId: inviter.user.id,
+				issuer: "https://issuer.example.com",
+				domain: "example.com",
+			},
+			{
+				id: Bun.randomUUIDv7(),
+				providerId: "oidc-backup",
+				organizationId: inviter.organizationId,
+				userId: inviter.user.id,
+				issuer: "https://backup-issuer.example.com",
+				domain: "example.com",
+			},
+		]);
 
 		const listResponse = await app.request(listUserInvitationsUrl, {
 			method: "GET",
 			headers: recipient.headers,
 		});
 
-		expect(listResponse.status).toBe(200);
-		await expect(listResponse.json()).resolves.toEqual(
+		expect(listResponse.status).toBe(403);
+
+		const customListResponse = await app.request(userSsoInvitationsUrl, {
+			method: "GET",
+			headers: recipient.headers,
+		});
+
+		expect(customListResponse.status).toBe(200);
+		await expect(customListResponse.json()).resolves.toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					id: invitationId,
-					organizationId: inviter.organizationId,
+					ssoProviders: expect.arrayContaining([
+						expect.objectContaining({ providerId: "oidc-primary" }),
+						expect.objectContaining({ providerId: "oidc-backup" }),
+					]),
 				}),
 			]),
 		);
@@ -162,16 +192,40 @@ describe("organization invitation acceptance", () => {
 			body: JSON.stringify({ invitationId }),
 		});
 
-		expect(acceptResponse.status).toBe(200);
+		expect(acceptResponse.status).toBe(403);
+
+		const verifyResponse = await app.request(`${userSsoInvitationsUrl}/${invitationId}/verify`, {
+			method: "POST",
+			headers: {
+				...recipient.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ providerId: "oidc-backup" }),
+		});
+
+		expect(verifyResponse.status).toBe(200);
+		const intentCookie = verifyResponse.headers
+			.get("set-cookie")
+			?.split(";")
+			.find((part) => part.trim().startsWith(`${SSO_INVITATION_INTENT_COOKIE}=`));
+		const intentToken = intentCookie?.split("=")[1];
+		expect(intentToken).toBeTruthy();
+
+		const intent = await ssoService.getValidInvitationSsoIntent(intentToken);
+		expect(intent).toEqual({
+			userId: recipient.user.id,
+			invitationId,
+			providerId: "oidc-backup",
+			organizationId: inviter.organizationId,
+			email: recipient.user.email.toLowerCase(),
+		});
 
 		const acceptedInvitation = await db.query.invitation.findFirst({ where: { id: invitationId } });
-		expect(acceptedInvitation?.status).toBe("accepted");
+		expect(acceptedInvitation?.status).toBe("pending");
 
-		const memberships = await db
-			.select()
-			.from(member)
-			.where(and(eq(member.userId, recipient.user.id), eq(member.organizationId, inviter.organizationId)))
-			.limit(1);
-		expect(memberships).toHaveLength(1);
+		const membership = await db.query.member.findFirst({
+			where: { AND: [{ userId: recipient.user.id }, { organizationId: inviter.organizationId }] },
+		});
+		expect(membership).toBeUndefined();
 	});
 });

@@ -1,8 +1,50 @@
 import { db } from "~/server/db/db";
-import { ssoProvider, account, invitation, organization, sessionsTable } from "~/server/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { ssoProvider, account, invitation, organization, sessionsTable, verification } from "~/server/db/schema";
+import { eq, and, inArray, gt } from "drizzle-orm";
 import { isReservedSsoProviderId } from "./utils/sso-provider-id";
 import { normalizeEmail } from "./utils/sso-context";
+import { parse as parseCookie } from "hono/utils/cookie";
+import { z } from "zod";
+
+export const SSO_INVITATION_INTENT_COOKIE = "zerobyte.sso_invitation_intent";
+const SSO_INVITATION_INTENT_PREFIX = "sso-invitation-accept";
+const SSO_INVITATION_INTENT_TTL_MS = 10 * 60 * 1000;
+
+const ssoInvitationIntentSchema = z
+	.object({
+		userId: z.string(),
+		invitationId: z.string(),
+		providerId: z.string(),
+		organizationId: z.string(),
+		email: z.string(),
+	})
+	.transform((intent) => ({ ...intent, email: normalizeEmail(intent.email) }));
+
+const ssoInvitationIntentRecordSchema = z
+	.string()
+	.transform((value, ctx) => {
+		try {
+			return JSON.parse(value) as unknown;
+		} catch {
+			ctx.addIssue({
+				code: "custom",
+				message: "Invalid SSO invitation intent",
+			});
+			return z.NEVER;
+		}
+	})
+	.pipe(ssoInvitationIntentSchema);
+
+type SsoInvitationIntent = z.infer<typeof ssoInvitationIntentSchema>;
+
+function getIntentIdentifier(token: string) {
+	return `${SSO_INVITATION_INTENT_PREFIX}:${token}`;
+}
+
+function parseSsoInvitationIntent(value: string): SsoInvitationIntent | null {
+	const parsed = ssoInvitationIntentRecordSchema.safeParse(value);
+	return parsed.success ? parsed.data : null;
+}
 
 class SsoService {
 	/**
@@ -52,6 +94,67 @@ class SsoService {
 		});
 	}
 
+	async listPendingInvitationsForUser(email: string) {
+		const normalizedEmail = normalizeEmail(email);
+		const pendingInvitations = await db
+			.select({
+				id: invitation.id,
+				organizationId: invitation.organizationId,
+				organizationName: organization.name,
+				role: invitation.role,
+				expiresAt: invitation.expiresAt,
+			})
+			.from(invitation)
+			.innerJoin(organization, eq(invitation.organizationId, organization.id))
+			.where(
+				and(
+					eq(invitation.email, normalizedEmail),
+					eq(invitation.status, "pending"),
+					gt(invitation.expiresAt, new Date()),
+				),
+			);
+
+		const organizationIds = [...new Set(pendingInvitations.map((row) => row.organizationId))];
+		const providers =
+			organizationIds.length > 0
+				? await db.query.ssoProvider.findMany({
+						columns: { providerId: true, organizationId: true },
+						where: { organizationId: { in: organizationIds } },
+					})
+				: [];
+
+		return pendingInvitations.map((pendingInvitation) => ({
+			id: pendingInvitation.id,
+			organizationName: pendingInvitation.organizationName,
+			role: pendingInvitation.role ?? "member",
+			expiresAt: pendingInvitation.expiresAt.toISOString(),
+			ssoProviders: providers
+				.filter((provider) => provider.organizationId === pendingInvitation.organizationId)
+				.map((provider) => ({ providerId: provider.providerId })),
+		}));
+	}
+
+	async getPendingInvitationById(invitationId: string) {
+		return db.query.invitation.findFirst({
+			where: {
+				AND: [{ id: invitationId }, { status: "pending" }, { expiresAt: { gt: new Date() } }],
+			},
+			columns: {
+				id: true,
+				email: true,
+				role: true,
+				organizationId: true,
+			},
+		});
+	}
+
+	async getSsoProviderForOrganization(providerId: string, organizationId: string) {
+		return db.query.ssoProvider.findFirst({
+			where: { AND: [{ providerId }, { organizationId }] },
+			columns: { providerId: true, organizationId: true },
+		});
+	}
+
 	/**
 	 * Get trusted provider ids for organization auto-linking
 	 */
@@ -62,6 +165,53 @@ class SsoService {
 		});
 
 		return providers.map((provider) => provider.providerId);
+	}
+
+	getInvitationIntentTokenFromRequest(request?: Request | null) {
+		if (!request) {
+			return null;
+		}
+
+		return parseCookie(request.headers.get("cookie") ?? "", SSO_INVITATION_INTENT_COOKIE)[
+			SSO_INVITATION_INTENT_COOKIE
+		];
+	}
+
+	async createInvitationSsoIntent(intent: SsoInvitationIntent) {
+		const token = crypto.randomUUID();
+		await db.insert(verification).values({
+			id: Bun.randomUUIDv7(),
+			identifier: getIntentIdentifier(token),
+			value: JSON.stringify({ ...intent, email: normalizeEmail(intent.email) }),
+			expiresAt: new Date(Date.now() + SSO_INVITATION_INTENT_TTL_MS),
+		});
+
+		return token;
+	}
+
+	async getValidInvitationSsoIntent(token: string | null | undefined) {
+		if (!token) {
+			return null;
+		}
+
+		const record = await db.query.verification.findFirst({
+			where: { AND: [{ identifier: getIntentIdentifier(token) }, { expiresAt: { gt: new Date() } }] },
+			columns: { value: true },
+		});
+
+		if (!record) {
+			return null;
+		}
+
+		return parseSsoInvitationIntent(record.value);
+	}
+
+	async consumeInvitationSsoIntent(token: string | null | undefined) {
+		if (!token) {
+			return;
+		}
+
+		await db.delete(verification).where(eq(verification.identifier, getIntentIdentifier(token)));
 	}
 
 	/**

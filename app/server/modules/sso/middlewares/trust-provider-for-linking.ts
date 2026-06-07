@@ -16,5 +16,17 @@ export async function resolveTrustedProvidersForRequest(request?: Request): Prom
 		return [];
 	}
 
-	return ssoService.getAutoLinkingSsoProviderIds(provider.organizationId);
+	const trustedProviders = await ssoService.getAutoLinkingSsoProviderIds(provider.organizationId);
+	const invitationIntent = await ssoService.getValidInvitationSsoIntent(
+		ssoService.getInvitationIntentTokenFromRequest(request),
+	);
+
+	if (
+		invitationIntent?.providerId === provider.providerId &&
+		invitationIntent.organizationId === provider.organizationId
+	) {
+		return [...new Set([...trustedProviders, provider.providerId])];
+	}
+
+	return trustedProviders;
 }

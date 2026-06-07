@@ -2,17 +2,23 @@ import { beforeEach, describe, expect, test } from "vitest";
 import type { GenericEndpointContext } from "better-auth";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
-import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
+import { account, invitation, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
 import { ssoIntegration } from "../sso.integration";
 import { ensureDefaultOrg } from "~/server/lib/auth/helpers/create-default-org";
+import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "../sso.service";
 
-function createMockSsoCallbackContext(providerId: string): GenericEndpointContext {
+function createMockSsoCallbackContext(providerId: string, cookie?: string): GenericEndpointContext {
+	const headers = new Headers();
+	if (cookie) {
+		headers.set("cookie", cookie);
+	}
+
 	return {
 		path: `/sso/callback/${providerId}`,
 		body: {},
 		query: {},
-		headers: new Headers(),
-		request: new Request(`http://localhost:3000/sso/callback/${providerId}`),
+		headers,
+		request: new Request(`http://localhost:3000/sso/callback/${providerId}`, { headers }),
 		params: { providerId },
 		method: "POST",
 		context: {} as GenericEndpointContext["context"],
@@ -60,6 +66,7 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 		await db.delete(account);
 		await db.delete(invitation);
 		await db.delete(ssoProvider);
+		await db.delete(verification);
 		await db.delete(organization);
 		await db.delete(usersTable);
 	});
@@ -358,6 +365,7 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 		await db.delete(account);
 		await db.delete(invitation);
 		await db.delete(ssoProvider);
+		await db.delete(verification);
 		await db.delete(organization);
 		await db.delete(usersTable);
 	});
@@ -396,7 +404,7 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 			createdAt: new Date(),
 		});
 
-		const allowed = await ssoIntegration.canLinkSsoAccount(userId, "oidc-acme");
+		const allowed = await ssoIntegration.canLinkSsoAccount(userId, "oidc-acme", null);
 
 		expect(allowed).toBe(true);
 	});
@@ -418,7 +426,7 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 				inviterId: ownerId,
 			});
 
-			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId);
+			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId, null);
 
 			expect(allowed).toBe(true);
 		},
@@ -441,17 +449,73 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 				inviterId: ownerId,
 			});
 
-			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId);
+			const allowed = await ssoIntegration.canLinkSsoAccount(
+				userId,
+				providerId,
+				createMockSsoCallbackContext(providerId),
+			);
 
 			expect(allowed).toBe(false);
 		},
 	);
 
+	test("allows an existing account to link only through a matching SSO invitation intent", async () => {
+		const { orgId, ownerId } = await setupOrgWithProvider("oidc-primary", false);
+		await db.insert(ssoProvider).values({
+			id: randomId(),
+			providerId: "oidc-backup",
+			organizationId: orgId,
+			userId: ownerId,
+			issuer: "https://backup-issuer.example.com",
+			domain: "example.com",
+			autoLinkMatchingEmails: false,
+		});
+		const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+		const invitationId = randomId();
+		await db.insert(invitation).values({
+			id: invitationId,
+			organizationId: orgId,
+			email: "alice@example.com",
+			role: "member",
+			status: "pending",
+			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			createdAt: new Date(),
+			inviterId: ownerId,
+		});
+		const token = await ssoService.createInvitationSsoIntent({
+			userId,
+			invitationId,
+			providerId: "oidc-backup",
+			organizationId: orgId,
+			email: "alice@example.com",
+		});
+		const cookie = `${SSO_INVITATION_INTENT_COOKIE}=${token}`;
+
+		await expect(
+			ssoIntegration.canLinkSsoAccount(
+				userId,
+				"oidc-primary",
+				createMockSsoCallbackContext("oidc-primary", cookie),
+			),
+		).resolves.toBe(false);
+		await expect(
+			ssoIntegration.canLinkSsoAccount(
+				userId,
+				"oidc-backup",
+				createMockSsoCallbackContext("oidc-backup", cookie),
+			),
+		).resolves.toBe(true);
+	});
+
 	test("blocks linking for a user with no membership and no invitation in the org", async () => {
 		await setupOrgWithProvider("oidc-acme");
 		const aliceId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
 
-		const allowed = await ssoIntegration.canLinkSsoAccount(aliceId, "oidc-acme");
+		const allowed = await ssoIntegration.canLinkSsoAccount(
+			aliceId,
+			"oidc-acme",
+			createMockSsoCallbackContext("oidc-acme"),
+		);
 
 		expect(allowed).toBe(false);
 	});
@@ -474,7 +538,11 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 			inviterId: ownerId,
 		});
 
-		const allowed = await ssoIntegration.canLinkSsoAccount(aliceId, "oidc-acme");
+		const allowed = await ssoIntegration.canLinkSsoAccount(
+			aliceId,
+			"oidc-acme",
+			createMockSsoCallbackContext("oidc-acme"),
+		);
 
 		expect(allowed).toBe(false);
 	});
@@ -493,7 +561,11 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 			inviterId: ownerId,
 		});
 
-		const allowed = await ssoIntegration.canLinkSsoAccount(aliceId, "oidc-acme");
+		const allowed = await ssoIntegration.canLinkSsoAccount(
+			aliceId,
+			"oidc-acme",
+			createMockSsoCallbackContext("oidc-acme"),
+		);
 
 		expect(allowed).toBe(false);
 	});

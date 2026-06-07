@@ -13,7 +13,7 @@ export const LOGIN_ERROR_CODES = [
 export type LoginErrorCode = (typeof LOGIN_ERROR_CODES)[number];
 
 export const ACCOUNT_LINK_REQUIRED_DESCRIPTION =
-	"SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict. If you have an invitation to this organization, make sure to accept it from your account page before signing in with SSO.";
+	"SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict. If you have an invitation to this organization, verify it from your account page before signing in with SSO.";
 
 export function getLoginErrorDescription(errorCode: LoginErrorCode): string {
 	switch (errorCode) {

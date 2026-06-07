@@ -1,20 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { fetchUser } from "../route";
 import type { AppContext } from "~/context";
 import { SettingsPage } from "~/client/modules/settings/routes/settings";
 import { z } from "zod";
 import { getOrganizationContext } from "~/server/lib/functions/organization-context";
-import { getOrgMembersOptions, getSsoSettingsOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	getOrgMembersOptions,
+	getSsoSettingsOptions,
+	getUserSsoInvitationsOptions,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { getOrigin } from "~/client/functions/get-origin";
-import { auth } from "~/server/lib/auth";
-
-const getUserInvitations = createServerFn({ method: "GET" }).handler(async () => {
-	const request = getRequest();
-
-	return auth.api.listUserInvitations({ headers: request.headers });
-});
 
 export const Route = createFileRoute("/(dashboard)/settings/")({
 	component: RouteComponent,
@@ -27,10 +22,7 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 				queryKey: ["organization-context"],
 				queryFn: () => getOrganizationContext(),
 			}),
-			context.queryClient.ensureQueryData({
-				queryKey: ["user-invitations"],
-				queryFn: () => getUserInvitations(),
-			}),
+			context.queryClient.ensureQueryData({ ...getUserSsoInvitationsOptions() }),
 		]);
 		const orgRole = orgContext.activeMember?.role;
 		const shouldPrefetchOrgQueries = orgRole === "owner" || orgRole === "admin";
