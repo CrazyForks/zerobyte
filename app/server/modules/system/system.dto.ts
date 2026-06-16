@@ -126,6 +126,48 @@ export const setRegistrationStatusDto = describeRoute({
 	},
 });
 
+const passwordLoginStatusResponse = z.object({
+	disabled: z.boolean(),
+});
+
+export type PasswordLoginStatusDto = z.infer<typeof passwordLoginStatusResponse>;
+
+export const passwordLoginStatusBody = z.object({
+	disabled: z.boolean(),
+});
+
+export const getPasswordLoginStatusDto = describeRoute({
+	description: "Get whether password-based login is disabled",
+	tags: ["System"],
+	operationId: "getPasswordLoginStatus",
+	responses: {
+		200: {
+			description: "Password login status",
+			content: {
+				"application/json": {
+					schema: resolver(passwordLoginStatusResponse),
+				},
+			},
+		},
+	},
+});
+
+export const setPasswordLoginStatusDto = describeRoute({
+	description: "Disable or re-enable password-based login. Requires global admin role.",
+	tags: ["System"],
+	operationId: "setPasswordLoginStatus",
+	responses: {
+		200: {
+			description: "Password login status updated",
+			content: {
+				"application/json": {
+					schema: resolver(passwordLoginStatusResponse),
+				},
+			},
+		},
+	},
+});
+
 const devPanelResponse = z.object({
 	enabled: z.boolean(),
 });
