@@ -133,6 +133,7 @@ async function createVolume(page: Page, volumeName: string) {
 	}).toPass({ timeout: 10000 });
 
 	await page.getByRole("textbox", { name: "Name" }).fill(volumeName);
+	await page.getByRole("button", { name: "Change", exact: true }).click();
 	await page.getByRole("button", { name: "test-data" }).click();
 	await page.getByRole("button", { name: "Create Volume" }).click();
 	await expect(page.getByText("Volume created successfully")).toBeVisible();
@@ -154,7 +155,7 @@ async function createRepository(page: Page, repositoryName: string, repositoryBa
 async function selectRepositoryDirectory(page: Page, directoryPath: string) {
 	const segments = directoryPath.split("/").filter(Boolean);
 
-	await page.getByRole("button", { name: "Change" }).click();
+	await page.getByRole("button", { name: "Change", exact: true }).click();
 	await page.getByRole("button", { name: "I Understand, Continue" }).click();
 
 	const dialog = page.getByRole("alertdialog");
@@ -419,7 +420,7 @@ test("can restore a single selected file to a custom location", async ({ page },
 	await expect(page).toHaveURL(/\/restore/);
 
 	await page.getByRole("button", { name: "Custom location" }).click();
-	await page.getByRole("button", { name: "Change" }).click();
+	await page.getByRole("button", { name: "Change", exact: true }).click();
 	await page.getByRole("button", { name: /^test-data$/ }).click();
 	await expect(page.getByText("/test-data", { exact: true })).toBeVisible();
 

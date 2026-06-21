@@ -69,6 +69,7 @@ async function createVolume(page: Page, name: string) {
 		await expect(volumeNameInput).toBeVisible();
 	}).toPass({ timeout: 10000 });
 	await volumeNameInput.fill(name);
+	await page.getByRole("button", { name: "Change", exact: true }).click();
 	await page.getByRole("button", { name: "test-data" }).click();
 	await page.getByRole("button", { name: "Create Volume" }).click();
 	await expect(page.getByText("Volume created successfully")).toBeVisible();
