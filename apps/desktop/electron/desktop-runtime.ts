@@ -1,5 +1,5 @@
 import { app } from "electron";
-import { spawn } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import net from "node:net";
@@ -115,11 +115,22 @@ const createServerEnv = (port: number, dirs: DesktopDirs, serverUrl: string, lau
 	DISABLE_RATE_LIMITING: "true",
 });
 
-const waitForServer = async (serverUrl: string) => {
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const throwIfExited = (serverProcess: ChildProcessWithoutNullStreams) => {
+	const exitStatus = serverProcess.exitCode ?? serverProcess.signalCode;
+	if (exitStatus !== null) {
+		throw new Error(`Zerobyte server exited before startup completed: ${exitStatus}`);
+	}
+};
+
+const waitForServer = async (serverUrl: string, serverProcess: ChildProcessWithoutNullStreams) => {
 	const deadline = Date.now() + 60_000;
 	let lastError = "";
 
 	while (Date.now() < deadline) {
+		throwIfExited(serverProcess);
+
 		try {
 			const response = await fetch(`${serverUrl}/api/healthcheck`, { signal: AbortSignal.timeout(5_000) });
 			if (response.ok) {
@@ -130,7 +141,7 @@ const waitForServer = async (serverUrl: string) => {
 			lastError = toMessage(error);
 		}
 
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await sleep(500);
 	}
 
 	throw new Error(`Timed out waiting for Zerobyte server: ${lastError}`);
@@ -146,7 +157,7 @@ export const startDesktopRuntime = async (
 	let stopped = false;
 	let stopResticBridge: (() => void) | null = null;
 	let command = "bunx";
-	let args = ["--bun", "vite", "--host", "127.0.0.1", "--port", String(port)];
+	let args = ["--bun", "vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"];
 	let cwd = process.env.ZEROBYTE_REPO_ROOT ?? path.resolve(process.cwd(), "../..");
 	const env = { ...createServerEnv(port, dirs, url, launchSecret), NODE_ENV: "development" };
 
@@ -186,7 +197,7 @@ export const startDesktopRuntime = async (
 		serverProcess.stderr.on("data", (data) => process.stderr.write(`[zerobyte] ${data}`));
 		serverProcess.once("exit", handleServerExit);
 
-		await waitForServer(url);
+		await waitForServer(url, serverProcess);
 
 		return {
 			url,
