@@ -115,7 +115,14 @@ jobs:
     with:
       release_tag: ${{ needs.determine-release-type.outputs.tagname }}
       publish_testflight: true
-    secrets: inherit
+    secrets:
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      ZEROBYTE_EXPORT_COMPLIANCE_CODE: ${{ secrets.ZEROBYTE_EXPORT_COMPLIANCE_CODE }}
+      ZEROBYTE_MAS_PROVISIONING_PROFILE_BASE64: ${{ secrets.ZEROBYTE_MAS_PROVISIONING_PROFILE_BASE64 }}
 
   publish-release:
     runs-on: ubuntu-latest
