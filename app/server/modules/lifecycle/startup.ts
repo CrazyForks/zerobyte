@@ -1,7 +1,5 @@
 import { Scheduler } from "../../core/scheduler";
-import { eq } from "drizzle-orm";
 import { db } from "../../db/db";
-import { backupSchedulesTable } from "../../db/schema";
 import { logger } from "@zerobyte/core/node";
 import { volumeService } from "../volumes/volume.service";
 import { CleanupDanglingMountsJob } from "../../jobs/cleanup-dangling";
@@ -18,7 +16,7 @@ import { config } from "~/server/core/config";
 import { syncProvisionedResources } from "../provisioning/provisioning";
 import { toMessage } from "~/server/utils/errors";
 import { LOCAL_AGENT_ID } from "../agents/constants";
-import { taskStore } from "../tasks/tasks.store";
+import { RESTART_TASK_ERROR, taskStore } from "../tasks/tasks.store";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
@@ -99,9 +97,9 @@ export const startup = async () => {
 		}
 	}
 
+	let staleTasks: ReturnType<typeof taskStore.markActiveStale> = [];
 	try {
-		const staleTasks = taskStore.markActiveStale({ error: "Zerobyte was restarted before this task completed" });
-
+		staleTasks = taskStore.markActiveStale({ error: RESTART_TASK_ERROR });
 		if (staleTasks.length > 0) {
 			logger.warn(`Marked ${staleTasks.length} active task(s) stale during startup`);
 		}
@@ -109,17 +107,9 @@ export const startup = async () => {
 		logger.error(`Failed to mark stale tasks on startup: ${toMessage(err)}`);
 	}
 
-	await db
-		.update(backupSchedulesTable)
-		.set({
-			lastBackupStatus: "warning",
-			lastBackupError: "Zerobyte was restarted during the last scheduled backup",
-			updatedAt: Date.now(),
-		})
-		.where(eq(backupSchedulesTable.lastBackupStatus, "in_progress"))
-		.catch((err) => {
-			logger.error(`Failed to update stuck backup schedules on startup: ${err.message}`);
-		});
+	await backupsService.recoverInterruptedBackups(staleTasks).catch((err) => {
+		logger.error(`Failed to recover interrupted backup schedules on startup: ${err.message}`);
+	});
 
 	if (!config.flags.enableLocalAgent) {
 		Scheduler.build(CleanupDanglingMountsJob).schedule("0 * * * *");
