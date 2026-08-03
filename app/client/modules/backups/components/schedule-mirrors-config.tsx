@@ -86,6 +86,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	const [syncDialogMirrorId, setSyncDialogMirrorId] = useState<string | null>(null);
 	const [selectedSnapshotIds, setSelectedSnapshotIds] = useState<Set<string>>(new Set());
 	const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+	const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
 	const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmation | null>(null);
 	const { data: activeMirrorSyncs } = useActiveTasks({
 		kind: "mirrorSync",
@@ -186,8 +187,16 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	const confirmCancellation = () => {
 		if (!cancelConfirmation) return;
 
-		const taskIds = cancelConfirmation.taskIds;
-		setCancelConfirmation(null);
+		const confirmedCancellation = cancelConfirmation;
+		const taskIds = confirmedCancellation.taskIds;
+
+		setTimeout(() => {
+			setCancelConfirmation((currentConfirmation) =>
+				currentConfirmation === confirmedCancellation ? null : currentConfirmation,
+			);
+		}, 1000);
+		setCancelConfirmationOpen(false);
+
 		for (const taskId of taskIds) {
 			cancelSync.mutate({ path: { taskId } });
 		}
@@ -494,6 +503,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 																				),
 																				repositoryName: repository.name,
 																			});
+																			setCancelConfirmationOpen(true);
 																			return;
 																		}
 																		openSyncDialog(repository.shortId);
@@ -643,8 +653,8 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 				</Dialog>
 
 				<AlertDialog
-					open={cancelConfirmation !== null}
-					onOpenChange={(open) => !open && setCancelConfirmation(null)}
+					open={cancelConfirmationOpen}
+					onOpenChange={(open) => !open && setCancelConfirmationOpen(false)}
 				>
 					<AlertDialogContent>
 						<AlertDialogHeader>
