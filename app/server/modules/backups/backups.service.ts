@@ -32,6 +32,7 @@ import { restic } from "../../core/restic";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
+import { registerTaskExecution } from "../tasks/tasks.lifecycle";
 import { createTaskProgressBuffer } from "../tasks/progress-buffer";
 import type { ParsedTask, TaskResourceType } from "~/schemas/tasks";
 
@@ -484,11 +485,18 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		organizationId: ctx.organizationId,
 		resourceType: BACKUP_TASK_RESOURCE_TYPE,
 		resourceId: String(scheduleId),
+		targetDisplayName: ctx.schedule.name,
 		targetAgentId: ctx.volume.agentId,
 		input: { kind: "backup", scheduleId, scheduleShortId: ctx.schedule.shortId, manual },
 	});
 
 	const abortController = backupExecutor.track(scheduleId);
+	const cancelBackupExecution = () => {
+		void backupExecutor.cancel(scheduleId).catch((error) => {
+			logger.error(`Failed to cancel backup task ${task.id}: ${toMessage(error)}`);
+		});
+	};
+	const unregisterTaskExecution = registerTaskExecution(task.id, cancelBackupExecution, true);
 	emitBackupStarted(ctx, scheduleId);
 	const progressBuffer = createTaskProgressBuffer(task.id, {
 		onError: (error) => {
@@ -570,6 +578,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 	} catch (error) {
 		if (abortController.signal.aborted) {
 			progressBuffer.flush();
+			await handleBackupCancellation(scheduleId, ctx.organizationId);
 			taskStore.cancel(task.id, "Backup was stopped by the user");
 			return;
 		}
@@ -583,6 +592,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		taskStore.fail(task.id, toMessage(error));
 	} finally {
 		progressBuffer.dispose();
+		unregisterTaskExecution();
 		backupExecutor.untrack(scheduleId, abortController);
 		cache.del(cacheKeys.backup.progress(scheduleId));
 	}
@@ -792,6 +802,7 @@ const startMirrorSync = async (
 		organizationId,
 		scheduleId: schedule.id,
 		scheduleShortId: schedule.shortId,
+		targetDisplayName: schedule.name,
 		sourceRepository: schedule.repository,
 		mirrorRepository,
 		retentionPolicy: schedule.retentionPolicy,

@@ -10,11 +10,15 @@ import { z } from "zod";
 export const taskStatuses = ["queued", "running", "cancelling", "cancelled", "succeeded", "failed", "stale"] as const;
 export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
 export const finishedTaskStatuses = ["cancelled", "succeeded", "failed", "stale"] as const;
+export const taskKinds = ["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor", "mirrorSync"] as const;
+export const taskOutcomes = ["success", "warning", "error", "cancelled", "stale"] as const;
+export const TASK_PERSISTENCE_FORMAT_VERSION = 1 as const;
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
 export const finishedTaskStatusSchema = z.enum(finishedTaskStatuses);
-export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor", "mirrorSync"]);
+export const taskKindSchema = z.enum(taskKinds);
+export const taskOutcomeSchema = z.enum(taskOutcomes);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 export const mirrorSyncPhaseSchema = z.enum(["preparing", "copying", "retention"]);
 
@@ -110,9 +114,11 @@ const taskShape = {
 	organizationId: z.string(),
 	kind: taskKindSchema,
 	status: taskStatusSchema,
+	outcome: taskOutcomeSchema.nullable(),
 	resourceType: taskResourceTypeSchema,
 	resourceId: z.string(),
 	operationKey: z.string().nullable(),
+	targetDisplayName: z.string().nullable(),
 	targetAgentId: z.string().nullable(),
 	input: taskInputSchema,
 	progress: taskProgressSchema.nullable(),
@@ -125,7 +131,10 @@ const taskShape = {
 	finishedAt: z.number().nullable(),
 };
 
-export const taskSchema = z.object(taskShape).superRefine((task, ctx) => {
+const validateTaskPayloadKinds = (
+	task: Pick<z.infer<z.ZodObject<typeof taskShape>>, "kind" | "input" | "progress" | "result">,
+	ctx: z.RefinementCtx,
+) => {
 	if (task.kind !== task.input.kind) {
 		ctx.addIssue({
 			code: "custom",
@@ -149,8 +158,23 @@ export const taskSchema = z.object(taskShape).superRefine((task, ctx) => {
 			message: "Task result kind must match task kind",
 		});
 	}
-});
-const { organizationId: _organizationId, ...taskDtoShape } = taskShape;
+};
+
+export const taskSchema = z.object(taskShape).superRefine(validateTaskPayloadKinds);
+export const persistedTaskSchema = z
+	.object({
+		...taskShape,
+		persistenceFormatVersion: z.literal(TASK_PERSISTENCE_FORMAT_VERSION),
+		targetDisplayName: z.string(),
+	})
+	.superRefine(validateTaskPayloadKinds);
+
+const {
+	organizationId: _organizationId,
+	outcome: _outcome,
+	targetDisplayName: _targetDisplayName,
+	...taskDtoShape
+} = taskShape;
 
 export const taskDtoSchema = z.object(taskDtoShape);
 
@@ -158,10 +182,13 @@ export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type ActiveTaskStatus = z.infer<typeof activeTaskStatusSchema>;
 export type FinishedTaskStatus = z.infer<typeof finishedTaskStatusSchema>;
 export type TaskKind = z.infer<typeof taskKindSchema>;
+export type TaskOutcome = z.infer<typeof taskOutcomeSchema>;
+export type TaskPersistenceFormatVersion = typeof TASK_PERSISTENCE_FORMAT_VERSION;
 export type TaskResourceType = z.infer<typeof taskResourceTypeSchema>;
 export type MirrorSyncPhase = z.infer<typeof mirrorSyncPhaseSchema>;
 export type TaskInput = z.infer<typeof taskInputSchema>;
 export type TaskProgress = z.infer<typeof taskProgressSchema>;
 export type TaskResult = z.infer<typeof taskResultSchema>;
 export type ParsedTask = z.infer<typeof taskSchema>;
+export type PersistedTask = z.infer<typeof persistedTaskSchema>;
 export type TaskDto = z.infer<typeof taskDtoSchema>;

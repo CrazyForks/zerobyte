@@ -1,5 +1,4 @@
 import { logger } from "@zerobyte/core/node";
-import { serverEvents } from "~/server/core/events";
 import { toMessage } from "~/server/utils/errors";
 import type { ParsedTask, TaskResult } from "~/schemas/tasks";
 import { taskStore } from "./tasks.store";
@@ -26,17 +25,22 @@ type TaskLifecycleOptions<TResult extends TaskResult> = {
 	onCancelled?: (task: ParsedTask, errorMessage: string, result: TResult | null) => void;
 };
 
-const abortControllers = new Map<string, AbortController>();
+type TaskExecution = {
+	cancel: () => void;
+	cancellable: boolean;
+};
 
-const emitTaskLifecycleEvent = (eventName: "task:started" | "task:finished", task: ParsedTask) => {
-	serverEvents.emit(eventName, {
-		organizationId: task.organizationId,
-		taskId: task.id,
-		kind: task.kind,
-		resourceType: task.resourceType,
-		resourceId: task.resourceId,
-		status: task.status,
-	});
+const taskExecutions = new Map<string, TaskExecution>();
+
+export const registerTaskExecution = (taskId: string, cancel: () => void, cancellable: boolean) => {
+	const execution = { cancel, cancellable };
+	taskExecutions.set(taskId, execution);
+
+	return () => {
+		if (taskExecutions.get(taskId) === execution) {
+			taskExecutions.delete(taskId);
+		}
+	};
 };
 
 const failTask = <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>, errorMessage: string) => {
@@ -82,27 +86,31 @@ const isAbortError = (error: unknown) => {
 };
 
 export const requestTaskCancel = (taskId: string) => {
-	const abortController = abortControllers.get(taskId);
-	if (!abortController) {
+	const execution = taskExecutions.get(taskId);
+	if (execution && !execution.cancellable) {
 		return false;
 	}
 
 	try {
 		taskStore.requestCancel(taskId);
+		if (!execution) {
+			taskStore.cancel(taskId, "Task was cancelled by the user");
+			return true;
+		}
 	} catch {
 		return false;
 	}
 
-	abortController.abort();
+	execution.cancel();
 	return true;
 };
 
 export const runTaskLifecycle = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>) => {
 	const abortController = new AbortController();
+	const cancellable = options.cancellable === true;
+	const cancelExecution = () => abortController.abort();
+	const unregisterExecution = registerTaskExecution(options.taskId, cancelExecution, cancellable);
 	let cleanup: (() => void) | undefined;
-	if (options.cancellable) {
-		abortControllers.set(options.taskId, abortController);
-	}
 
 	try {
 		cleanup = await options.prepare?.(abortController.signal);
@@ -110,7 +118,6 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 
 		const startedTask = taskStore.markRunning(options.taskId);
 		await options.onStarted?.(startedTask);
-		emitTaskLifecycleEvent("task:started", startedTask);
 
 		if (startedTask.cancellationRequested) {
 			abortController.abort();
@@ -123,27 +130,18 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 		} catch (error) {
 			logger.warn(`Failed to handle successful ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		}
-		emitTaskLifecycleEvent("task:finished", completedTask);
 	} catch (error) {
 		if (abortController.signal.aborted || isAbortError(error)) {
 			const cancelledError = isTaskCancelledError(error) ? error : null;
 			const errorMessage = cancelledError?.message || toMessage(error) || "Task was cancelled";
 			const result = (cancelledError?.result as TResult | null) ?? null;
-			const cancelledTask = cancelTask(options, errorMessage, result);
-			if (cancelledTask) {
-				emitTaskLifecycleEvent("task:finished", cancelledTask);
-			}
+			cancelTask(options, errorMessage, result);
 			return;
 		}
 
-		const failedTask = failTask(options, toMessage(error));
-		if (failedTask) {
-			emitTaskLifecycleEvent("task:finished", failedTask);
-		}
+		failTask(options, toMessage(error));
 	} finally {
 		cleanup?.();
-		if (options.cancellable) {
-			abortControllers.delete(options.taskId);
-		}
+		unregisterExecution();
 	}
 };

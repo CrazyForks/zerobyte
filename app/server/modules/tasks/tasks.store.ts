@@ -1,11 +1,13 @@
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
+import { getTaskHistoryOutcome, type TaskHistoryOutcome } from "~/schemas/task-history";
 import {
 	activeTaskStatuses,
 	finishedTaskStatuses,
 	finishedTaskStatusSchema,
 	taskInputSchema,
+	TASK_PERSISTENCE_FORMAT_VERSION,
 	taskProgressSchema,
 	taskResultSchema,
 	taskSchema,
@@ -17,6 +19,8 @@ import {
 	type TaskResourceType,
 	type TaskResult,
 } from "~/schemas/tasks";
+import { serverEvents } from "~/server/core/events";
+import { getCompletedTaskOutcome } from "./task-outcome";
 
 type TaskResource = {
 	organizationId: string;
@@ -31,6 +35,7 @@ type CreateTaskParams = {
 	organizationId: string;
 	resourceType: TaskResourceType;
 	resourceId: string;
+	targetDisplayName: string;
 	operationKey?: string | null;
 	targetAgentId?: string | null;
 	input: TaskInput;
@@ -77,6 +82,19 @@ const emitTaskChanged = (task: ParsedTask) => {
 	for (const listener of allTaskListeners) {
 		listener(task);
 	}
+};
+
+const emitTaskHistoryChanged = (task: ParsedTask, previousOutcome: TaskHistoryOutcome | null = null) => {
+	emitTaskChanged(task);
+	const outcome = getTaskHistoryOutcome(task.status, task.outcome);
+
+	serverEvents.emit("task:history-changed", {
+		organizationId: task.organizationId,
+		taskId: task.id,
+		kind: task.kind,
+		previousOutcome,
+		outcome,
+	});
 };
 
 const subscribeToAllTaskChanges = (listener: TaskChangeListener) => {
@@ -171,9 +189,12 @@ export const taskStore = {
 				organizationId: params.organizationId,
 				kind: input.kind,
 				status: "queued",
+				outcome: null,
 				resourceType: params.resourceType,
 				resourceId: params.resourceId,
 				operationKey: params.operationKey ?? null,
+				persistenceFormatVersion: TASK_PERSISTENCE_FORMAT_VERSION,
+				targetDisplayName: params.targetDisplayName,
 				targetAgentId: params.targetAgentId ?? null,
 				input,
 				progress: null,
@@ -187,7 +208,7 @@ export const taskStore = {
 			.get();
 
 		const task = parseTask(row);
-		emitTaskChanged(task);
+		emitTaskHistoryChanged(task);
 		return task;
 	},
 
@@ -201,7 +222,7 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "marked running");
-		emitTaskChanged(task);
+		emitTaskHistoryChanged(task, "running");
 		return task;
 	},
 
@@ -228,7 +249,7 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "marked cancelling");
-		emitTaskChanged(task);
+		emitTaskHistoryChanged(task, "running");
 		return task;
 	},
 
@@ -239,6 +260,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "succeeded",
+				outcome: getCompletedTaskOutcome(parsedResult),
 				result: parsedResult,
 				error: null,
 				updatedAt: now,
@@ -249,7 +271,7 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "completed");
-		emitTaskChanged(task);
+		emitTaskHistoryChanged(task, "running");
 		return task;
 	},
 
@@ -259,6 +281,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "failed",
+				outcome: "error",
 				error,
 				updatedAt: now,
 				finishedAt: now,
@@ -268,7 +291,7 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "failed");
-		emitTaskChanged(task);
+		emitTaskHistoryChanged(task, "running");
 		return task;
 	},
 
@@ -278,6 +301,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "cancelled",
+				outcome: "cancelled",
 				error,
 				result: result === null ? null : taskResultSchema.parse(result),
 				updatedAt: now,
@@ -288,7 +312,7 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "cancelled");
-		emitTaskChanged(task);
+		emitTaskHistoryChanged(task, "running");
 		return task;
 	},
 
@@ -399,6 +423,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "stale",
+				outcome: "stale",
 				error: params.error ?? "Task was interrupted before it completed",
 				updatedAt: now,
 				finishedAt: now,
@@ -409,7 +434,7 @@ export const taskStore = {
 
 		const tasks = rows.map(parseTask);
 		for (const task of tasks) {
-			emitTaskChanged(task);
+			emitTaskHistoryChanged(task, "running");
 		}
 		return tasks;
 	},

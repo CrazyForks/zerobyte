@@ -21,6 +21,7 @@ const createTask = (
 		organizationId,
 		resourceType: options.resourceType ?? "repository",
 		resourceId,
+		targetDisplayName: `Target ${resourceId}`,
 		input: {
 			kind: "deleteSnapshots",
 			repositoryId: resourceId,
@@ -35,11 +36,27 @@ const createRestoreTask = (organizationId: string, repositoryId = "repo-short", 
 		resourceType: "repository",
 		resourceId: repositoryId,
 		operationKey: snapshotId,
+		targetDisplayName: `Repository ${repositoryId}`,
 		input: {
 			kind: "restore",
 			repositoryId,
 			snapshotId,
 			target: "/tmp/restore",
+		},
+	});
+};
+
+const createBackupTask = (organizationId: string) => {
+	return taskStore.create({
+		organizationId,
+		resourceType: "backup_schedule",
+		resourceId: "schedule-short",
+		targetDisplayName: "Backup schedule",
+		input: {
+			kind: "backup",
+			scheduleId: 1,
+			scheduleShortId: "schedule-short",
+			manual: true,
 		},
 	});
 };
@@ -113,9 +130,59 @@ describe("tasksController", () => {
 		);
 	});
 
+	test("cancels an orphaned running task", async () => {
+		const session = await createTestSession();
+		const task = createRestoreTask(session.organizationId);
+		taskStore.markRunning(task.id);
+
+		const res = await app.request(`/api/v1/tasks/${task.id}/cancel`, {
+			method: "POST",
+			headers: session.headers,
+		});
+
+		expect(res.status).toBe(202);
+		await expect(res.json()).resolves.toEqual({ status: "cancelling" });
+		const cancelledTask = taskStore.findById({ organizationId: session.organizationId, taskId: task.id });
+		expect(cancelledTask?.status).toBe("cancelled");
+		expect(cancelledTask?.cancellationRequested).toBe(true);
+	});
+
+	test("cancels an orphaned running backup task", async () => {
+		const session = await createTestSession();
+		const task = createBackupTask(session.organizationId);
+		taskStore.markRunning(task.id);
+
+		const res = await app.request(`/api/v1/tasks/${task.id}/cancel`, {
+			method: "POST",
+			headers: session.headers,
+		});
+
+		expect(res.status).toBe(202);
+		const cancelledTask = taskStore.findById({ organizationId: session.organizationId, taskId: task.id });
+		expect(cancelledTask?.status).toBe("cancelled");
+		expect(cancelledTask?.cancellationRequested).toBe(true);
+	});
+
 	test("rejects cancellation for a task without cancellation support", async () => {
 		const session = await createTestSession();
 		const task = createTask(session.organizationId);
+		let finishExecution: (() => void) | undefined;
+		let markExecutionStarted: (() => void) | undefined;
+		const executionStarted = new Promise<void>((resolve) => {
+			markExecutionStarted = resolve;
+		});
+		const lifecycle = runTaskLifecycle({
+			taskId: task.id,
+			label: "snapshot deletion task",
+			run: async () => {
+				markExecutionStarted?.();
+				await new Promise<void>((resolve) => {
+					finishExecution = resolve;
+				});
+				return { kind: "deleteSnapshots", deletedSnapshotIds: ["snapshot-1"] };
+			},
+		});
+		await executionStarted;
 
 		const res = await app.request(`/api/v1/tasks/${task.id}/cancel`, {
 			method: "POST",
@@ -123,6 +190,8 @@ describe("tasksController", () => {
 		});
 
 		expect(res.status).toBe(409);
+		finishExecution?.();
+		await lifecycle;
 	});
 
 	test("returns a task by id", async () => {
@@ -141,6 +210,8 @@ describe("tasksController", () => {
 			input: { kind: "deleteSnapshots", repositoryId: "repo-short", snapshotIds: ["snapshot-1"] },
 		});
 		expect(body.organizationId).toBeUndefined();
+		expect(body.outcome).toBeUndefined();
+		expect(body.targetDisplayName).toBeUndefined();
 	});
 
 	test("streams the requested task state", async () => {
