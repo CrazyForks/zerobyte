@@ -142,6 +142,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			includePatterns: data.includePatterns ?? [],
 			oneFileSystem: data.oneFileSystem,
 			customResticParams: data.customResticParams ?? [],
+			compressionMode: data.compressionMode ?? null,
 			backupWebhooks: data.backupWebhooks ?? null,
 			nextBackupAt: nextBackupAt,
 			shortId: generateShortId(),
